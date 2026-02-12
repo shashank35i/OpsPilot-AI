@@ -897,6 +897,38 @@ html[data-theme="light"] .status-badge.tone-neutral {
   color: var(--text);
 }
 
+.empty-state {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--muted);
+  background: color-mix(in oklab, var(--surface-2) 60%, transparent);
+}
+
+.empty-state strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.empty-table-state {
+  margin: 4px 0;
+}
+
+.empty-inline {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;

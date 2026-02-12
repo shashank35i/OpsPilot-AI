@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { API_BASE, api } from "../lib/api";
+import { readCache, writeCache } from "../lib/cache";
+import { InboxIcon } from "lucide-react";
 
 type SummaryResponse = {
   incidents: { open: number; investigating: number; mitigated: number; resolved: number };
@@ -20,16 +22,34 @@ export const Dashboard: React.FC = () => {
   const releaseTag = import.meta.env.VITE_APP_RELEASE || "prod";
 
   useEffect(() => {
+    const cachedSummary = readCache<SummaryResponse>("dashboard:summary");
+    const cachedActivities = readCache<{ items: any[] }>("dashboard:activities");
+    const cachedHealth = readCache<HealthResponse>("dashboard:health");
+
+    if (cachedSummary) setSummary(cachedSummary);
+    if (cachedActivities?.items) setActivities(cachedActivities.items);
+    if (cachedHealth) setHealth(cachedHealth);
+
     api<SummaryResponse>("/api/analytics/summary")
-      .then(setSummary)
+      .then((data) => {
+        setSummary(data);
+        writeCache("dashboard:summary", data, 30_000);
+      })
       .catch(() => setSummary(null));
+
     api<{ items: any[] }>("/api/activities")
-      .then((d) => setActivities(d.items || []))
+      .then((d) => {
+        setActivities(d.items || []);
+        writeCache("dashboard:activities", d, 15_000);
+      })
       .catch(() => setActivities([]));
 
     fetch(`${API_BASE}/api/health`)
       .then((res) => res.json())
-      .then((d) => setHealth(d))
+      .then((d) => {
+        setHealth(d);
+        writeCache("dashboard:health", d, 20_000);
+      })
       .catch(() => setHealth(null));
   }, []);
 
@@ -68,7 +88,15 @@ export const Dashboard: React.FC = () => {
         <article className="card">
           <div className="section-title">Live Activity</div>
           <div className="timeline-list">
-            {activities.length === 0 && <div className="muted">No recent activity.</div>}
+            {activities.length === 0 && (
+              <div className="empty-state">
+                <InboxIcon size={20} />
+                <div>
+                  <strong>No recent activity yet</strong>
+                  <p>As incidents and tasks change, timeline events will appear here.</p>
+                </div>
+              </div>
+            )}
             {activities.map((a) => (
               <div key={a._id} className="timeline-item">
                 <div className="timeline-dot" />

@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { incidentBadges, slaProgress, slaTone, timeLeft } from "../lib/format";
+import { readCache, writeCache } from "../lib/cache";
+import { InboxIcon } from "lucide-react";
 
 export const Incidents: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -12,17 +14,24 @@ export const Incidents: React.FC = () => {
   const [aiById, setAiById] = useState<Record<string, { summary: string; plan: string }>>({});
   const [info, setInfo] = useState("");
 
-  const load = () => {
+  const load = async () => {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     const q = searchParams.get("q") || "";
     if (q) params.set("q", q);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return api<{ items: any[] }>(`/api/incidents${query}`).then((d) => setItems(d.items || []));
+    const cacheKey = `incidents:list:${params.toString() || "all"}`;
+
+    const cached = readCache<{ items: any[] }>(cacheKey);
+    if (cached?.items) setItems(cached.items);
+
+    const data = await api<{ items: any[] }>(`/api/incidents${query}`);
+    setItems(data.items || []);
+    writeCache(cacheKey, data, 20_000);
   };
 
   useEffect(() => {
-    load();
+    load().catch(() => setItems([]));
   }, [statusFilter, searchParams]);
 
   const create = async () => {
@@ -118,6 +127,19 @@ export const Incidents: React.FC = () => {
               </tr>
             </thead>
             <tbody>
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="empty-state empty-table-state">
+                      <InboxIcon size={20} />
+                      <div>
+                        <strong>No incidents found</strong>
+                        <p>Create a new incident or adjust search and filters.</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
               {items.map((i) => {
                 const statusKey = i.status as keyof typeof incidentBadges;
                 const badge = incidentBadges[statusKey] || { label: i.status, tone: "neutral" };

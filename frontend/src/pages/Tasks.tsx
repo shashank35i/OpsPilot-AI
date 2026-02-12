@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { taskBadges } from "../lib/format";
+import { readCache, writeCache } from "../lib/cache";
+import { InboxIcon } from "lucide-react";
 
 export const Tasks: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -9,14 +11,21 @@ export const Tasks: React.FC = () => {
   const [title, setTitle] = useState("");
   const [busyId, setBusyId] = useState("");
 
-  const load = () => {
+  const load = async () => {
     const q = searchParams.get("q") || "";
     const query = q ? `?q=${encodeURIComponent(q)}` : "";
-    return api<{ items: any[] }>(`/api/tasks${query}`).then((d) => setItems(d.items || []));
+    const cacheKey = `tasks:list:${q || "all"}`;
+
+    const cached = readCache<{ items: any[] }>(cacheKey);
+    if (cached?.items) setItems(cached.items);
+
+    const d = await api<{ items: any[] }>(`/api/tasks${query}`);
+    setItems(d.items || []);
+    writeCache(cacheKey, d, 20_000);
   };
 
   useEffect(() => {
-    load();
+    load().catch(() => setItems([]));
   }, [searchParams]);
 
   const create = async () => {
@@ -68,6 +77,19 @@ export const Tasks: React.FC = () => {
               </tr>
             </thead>
             <tbody>
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="empty-state empty-table-state">
+                      <InboxIcon size={20} />
+                      <div>
+                        <strong>No tasks found</strong>
+                        <p>Add a task or update your search query.</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
               {items.map((i) => {
                 const statusKey = i.status as keyof typeof taskBadges;
                 const badge = taskBadges[statusKey] || { label: i.status, tone: "neutral" };
