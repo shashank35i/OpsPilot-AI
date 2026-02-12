@@ -30,6 +30,8 @@ export const Dashboard: React.FC = () => {
     if (cachedActivities?.items) setActivities(cachedActivities.items);
     if (cachedHealth) setHealth(cachedHealth);
 
+    if (cachedSummary && cachedActivities?.items && cachedHealth) return;
+
     api<SummaryResponse>("/api/analytics/summary")
       .then((data) => {
         setSummary(data);

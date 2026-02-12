@@ -27,6 +27,7 @@ export const Analytics: React.FC = () => {
     const cachedModel = readCache<{ model: PriorityModel }>("analytics:model");
     if (cachedSummary) setSummary(cachedSummary);
     if (cachedModel?.model) setModel(cachedModel.model);
+    if (cachedSummary && cachedModel?.model) return;
 
     api<SummaryResponse>("/api/analytics/summary")
       .then((data) => {

@@ -17,7 +17,10 @@ export const Tasks: React.FC = () => {
     const cacheKey = `tasks:list:${q || "all"}`;
 
     const cached = readCache<{ items: any[] }>(cacheKey);
-    if (cached?.items) setItems(cached.items);
+    if (cached?.items) {
+      setItems(cached.items);
+      return;
+    }
 
     const d = await api<{ items: any[] }>(`/api/tasks${query}`);
     setItems(d.items || []);

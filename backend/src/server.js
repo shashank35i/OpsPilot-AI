@@ -15,7 +15,7 @@ const Activity = require("./models/Activity");
 const { auth, requireRole } = require("./middleware/auth");
 const { summarizeIncident, scoreIncident, getPriorityModel } = require("./utils/ai");
 const { seed } = require("./utils/seed");
-const { cacheGet, cacheSet, cacheDel } = require("./utils/redis");
+const { cacheGet, cacheSet, cacheDel, getRedis } = require("./utils/redis");
 
 const app = express();
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "")
@@ -389,10 +389,13 @@ app.get("/api/activities", auth, async (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
+  const redis = getRedis();
+  const redisStatus = redis ? redis.status || "unknown" : "disabled";
   res.json({
     ok: true,
     service: "opspilot-backend",
     version: APP_VERSION,
+    redis: redisStatus,
     uptimeSeconds: Math.floor((Date.now() - STARTED_AT) / 1000),
     timestamp: new Date().toISOString(),
   });

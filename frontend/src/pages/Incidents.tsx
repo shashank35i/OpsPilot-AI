@@ -23,7 +23,10 @@ export const Incidents: React.FC = () => {
     const cacheKey = `incidents:list:${params.toString() || "all"}`;
 
     const cached = readCache<{ items: any[] }>(cacheKey);
-    if (cached?.items) setItems(cached.items);
+    if (cached?.items) {
+      setItems(cached.items);
+      return;
+    }
 
     const data = await api<{ items: any[] }>(`/api/incidents${query}`);
     setItems(data.items || []);
