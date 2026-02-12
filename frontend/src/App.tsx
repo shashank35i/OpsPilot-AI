@@ -18,12 +18,32 @@ const Protected = ({ children }: ProtectedProps) => {
   return <>{children}</>;
 };
 
+const PublicOnly = ({ children }: ProtectedProps) => {
+  const token = localStorage.getItem("token");
+  if (token) return <Navigate to="/app" replace />;
+  return <>{children}</>;
+};
+
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route
+        path="/login"
+        element={
+          <PublicOnly>
+            <Login />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicOnly>
+            <Register />
+          </PublicOnly>
+        }
+      />
 
       <Route
         path="/app"

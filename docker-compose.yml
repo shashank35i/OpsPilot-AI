@@ -1,38 +1,80 @@
-version: "3.9"
-
-services:
+﻿services:
   mongo:
     image: mongo:7
     container_name: opspilot-mongo
+    restart: unless-stopped
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: opspilot
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  redis:
+    image: redis:7-alpine
+    container_name: opspilot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: opspilot-backend
-    ports:
-      - "8080:8080"
+    restart: unless-stopped
     environment:
+      PORT: 8080
       MONGO_URL: mongodb://mongo:27017/opspilot
       JWT_SECRET: change_me
       CLIENT_ORIGIN: http://localhost:5173
+      REDIS_URL: redis://redis:6379
       SEED_ON_START: "1"
+    ports:
+      - "8080:8080"
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
     container_name: opspilot-frontend
+    restart: unless-stopped
     ports:
-      - "5173:5173"
-    environment:
-      VITE_API_BASE_URL: http://localhost:8080
+      - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
 
 volumes:
   mongo_data:
+  redis_data:
