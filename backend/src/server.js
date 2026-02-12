@@ -37,6 +37,8 @@ app.use(express.json({ limit: "2mb" }));
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change";
 const PORT = process.env.PORT || 8080;
+const APP_VERSION = process.env.APP_VERSION || require("../package.json").version || "1.0.0";
+const STARTED_AT = Date.now();
 const INCIDENT_CACHE_KEYS = [
   "incidents:all",
   "incidents:Open",
@@ -387,7 +389,13 @@ app.get("/api/activities", auth, async (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    service: "opspilot-backend",
+    version: APP_VERSION,
+    uptimeSeconds: Math.floor((Date.now() - STARTED_AT) / 1000),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 connectMongo()

@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { API_BASE, api } from "../lib/api";
 
 type SummaryResponse = {
   incidents: { open: number; investigating: number; mitigated: number; resolved: number };
   tasksOpen: number;
 };
 
+type HealthResponse = {
+  ok: boolean;
+  service?: string;
+  version?: string;
+  uptimeSeconds?: number;
+};
+
 export const Dashboard: React.FC = () => {
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const releaseTag = import.meta.env.VITE_APP_RELEASE || "prod";
 
   useEffect(() => {
     api<SummaryResponse>("/api/analytics/summary")
@@ -17,6 +26,11 @@ export const Dashboard: React.FC = () => {
     api<{ items: any[] }>("/api/activities")
       .then((d) => setActivities(d.items || []))
       .catch(() => setActivities([]));
+
+    fetch(`${API_BASE}/api/health`)
+      .then((res) => res.json())
+      .then((d) => setHealth(d))
+      .catch(() => setHealth(null));
   }, []);
 
   return (
@@ -86,6 +100,13 @@ export const Dashboard: React.FC = () => {
             <div className="metric-row">
               <div className="muted">Escalations this week</div>
               <strong>4</strong>
+            </div>
+            <div className="metric-row">
+              <div className="muted">Backend status</div>
+              <strong>{health?.ok ? "Healthy" : "Unavailable"}</strong>
+              <div className="muted" style={{ fontSize: 12 }}>
+                {health?.version ? `Version ${health.version}` : "Version unknown"} · Release {releaseTag}
+              </div>
             </div>
           </div>
         </article>
