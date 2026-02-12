@@ -1,63 +1,193 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { incidentBadges, timeLeft } from "../lib/format";
+import { incidentBadges, slaProgress, slaTone, timeLeft } from "../lib/format";
 
 export const Incidents: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<any[]>([]);
   const [title, setTitle] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [busyId, setBusyId] = useState<string>("");
+  const [aiById, setAiById] = useState<Record<string, { summary: string; plan: string }>>({});
+  const [info, setInfo] = useState("");
 
-  const load = () => api<{ items: any[] }>("/api/incidents").then((d) => setItems(d.items || []));
+  const load = () => {
+    const params = new URLSearchParams();
+    if (statusFilter) params.set("status", statusFilter);
+    const q = searchParams.get("q") || "";
+    if (q) params.set("q", q);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return api<{ items: any[] }>(`/api/incidents${query}`).then((d) => setItems(d.items || []));
+  };
 
   useEffect(() => {
     load();
-  }, []);
+  }, [statusFilter, searchParams]);
 
   const create = async () => {
     if (!title.trim()) return;
-    await api("/api/incidents", { method: "POST", body: JSON.stringify({ title, severity: "Medium", slaHours: 12 }) });
+    await api("/api/incidents", {
+      method: "POST",
+      body: JSON.stringify({ title, severity: "Medium", slaHours: 12 }),
+    });
     setTitle("");
     load();
   };
 
+  const updateIncidentStatus = async (id: string, status: string) => {
+    setBusyId(id);
+    setInfo("");
+    try {
+      await api(`/api/incidents/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await load();
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const generateAiBrief = async (id: string) => {
+    setBusyId(id);
+    setInfo("");
+    try {
+      const data = await api<{ summary: string; plan: string }>("/api/ai/incident-summary", {
+        method: "POST",
+        body: JSON.stringify({ incidentId: id }),
+      });
+      setAiById((prev) => ({ ...prev, [id]: data }));
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const createAutoTasks = async (id: string) => {
+    setBusyId(id);
+    setInfo("");
+    try {
+      const data = await api<{ items: any[] }>(`/api/incidents/${id}/auto-tasks`, { method: "POST" });
+      setInfo(`Created ${data.items?.length || 0} execution tasks for this incident.`);
+    } finally {
+      setBusyId("");
+    }
+  };
+
   return (
-    <div className="grid" style={{ gap: 16 }}>
-      <div className="card">
-        <h2>Incidents</h2>
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <input className="input" placeholder="New incident title" value={title} onChange={(e) => setTitle(e.target.value)} />
+    <div className="page">
+      <section className="card toolbar-shell">
+        <div>
+          <div className="section-title">Incident Intake</div>
+          <h2 style={{ margin: "8px 0 0" }}>Active incident queue</h2>
+          {searchParams.get("q") ? (
+            <div className="muted" style={{ marginTop: 6 }}>Search: "{searchParams.get("q")}"</div>
+          ) : null}
+        </div>
+        <div className="toolbar-controls">
+          <select className="input compact" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All status</option>
+            <option value="Open">Open</option>
+            <option value="Investigating">Investigating</option>
+            <option value="Mitigated">Mitigated</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+          <input
+            className="input"
+            placeholder="New incident title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
           <button className="btn primary" onClick={create}>Create</button>
         </div>
-      </div>
+        {info ? <div className="muted">{info}</div> : null}
+      </section>
 
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Status</th>
-              <th>Severity</th>
-              <th>Priority</th>
-              <th>SLA</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i) => {
-              const badge = incidentBadges[i.status] || { label: i.status, color: "#64748b" };
-              return (
-                <tr key={i._id}>
-                  <td>{i.title}</td>
-                  <td><span className="pill" style={{ color: badge.color }}>{badge.label}</span></td>
-                  <td>{i.severity}</td>
-                  <td><span className="pill">{i.score?.label || "-"}</span></td>
-                  <td className="muted">{timeLeft(i.dueAt)}</td>
-                  <td className="muted">{new Date(i.createdAt).toLocaleString()}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <section className="card table-shell">
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Severity</th>
+                <th>Priority</th>
+                <th>SLA</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((i) => {
+                const statusKey = i.status as keyof typeof incidentBadges;
+                const badge = incidentBadges[statusKey] || { label: i.status, tone: "neutral" };
+                const sla = slaProgress(i.dueAt, i.createdAt);
+                const tone = slaTone(i.dueAt);
+                return (
+                  <React.Fragment key={i._id}>
+                    <tr>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{i.title}</div>
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          Owner: {i.owner ? "Assigned" : "Unassigned"}
+                        </div>
+                      </td>
+                      <td><span className={`status-badge tone-${badge.tone}`}>{badge.label}</span></td>
+                      <td>{i.severity}</td>
+                      <td>
+                        <div style={{ display: "grid", gap: 4 }}>
+                          <span className="pill">{i.score?.label || "-"}</span>
+                          <span className="muted" style={{ fontSize: 12 }}>Score: {i.score?.score ?? "--"}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <span className={`status-badge tone-${tone}`}>{timeLeft(i.dueAt)}</span>
+                          <div className="sla-bar">
+                            <span style={{ width: `${sla}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="muted">{new Date(i.createdAt).toLocaleString()}</td>
+                      <td>
+                        <div className="row-actions">
+                          <select
+                            className="input compact"
+                            value={i.status}
+                            disabled={busyId === i._id}
+                            onChange={(e) => updateIncidentStatus(i._id, e.target.value)}
+                          >
+                            <option value="Open">Open</option>
+                            <option value="Investigating">Investigating</option>
+                            <option value="Mitigated">Mitigated</option>
+                            <option value="Resolved">Resolved</option>
+                          </select>
+                          <button className="btn ghost" disabled={busyId === i._id} onClick={() => generateAiBrief(i._id)}>
+                            AI brief
+                          </button>
+                          <button className="btn" disabled={busyId === i._id} onClick={() => createAutoTasks(i._id)}>
+                            Auto tasks
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {aiById[i._id] ? (
+                      <tr>
+                        <td colSpan={7}>
+                          <div className="ai-brief">
+                            <div><strong>Summary:</strong> {aiById[i._id].summary}</div>
+                            <div><strong>Plan:</strong> {aiById[i._id].plan}</div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };

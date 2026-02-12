@@ -13,15 +13,37 @@ const Incident = require("./models/Incident");
 const Task = require("./models/Task");
 const Activity = require("./models/Activity");
 const { auth, requireRole } = require("./middleware/auth");
-const { summarizeIncident, scoreIncident } = require("./utils/ai");
+const { summarizeIncident, scoreIncident, getPriorityModel } = require("./utils/ai");
 const { seed } = require("./utils/seed");
+const { cacheGet, cacheSet, cacheDel } = require("./utils/redis");
 
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "*" }));
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow server-to-server and tools without Origin header
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.length === 0) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change";
 const PORT = process.env.PORT || 8080;
+const INCIDENT_CACHE_KEYS = [
+  "incidents:all",
+  "incidents:Open",
+  "incidents:Investigating",
+  "incidents:Mitigated",
+  "incidents:Resolved",
+];
 
 async function connectMongo() {
   const uri = process.env.MONGO_URL || "";
@@ -47,6 +69,10 @@ async function logActivity({ actor, type, entityType, entityId, message, metadat
   } catch (e) {
     console.error("Activity log failed", e?.message || e);
   }
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // --- Auth
@@ -91,13 +117,6 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-app.post("/api/auth/demo", async (_req, res) => {
-  const user = await User.findOne({ email: "admin@opspilot.ai" });
-  if (!user) return res.status(404).json({ message: "Demo user missing" });
-  const token = createToken(user);
-  return res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
-});
-
 app.get("/api/auth/me", auth, async (req, res) => {
   const user = await User.findById(req.user.id).select("name email role");
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -106,14 +125,30 @@ app.get("/api/auth/me", auth, async (req, res) => {
 
 // --- Incidents
 app.get("/api/incidents", auth, async (req, res) => {
-  const status = req.query.status;
-  const filter = status ? { status } : {};
+  const status = String(req.query.status || "").trim();
+  const q = String(req.query.q || "").trim();
+  const filter = {};
+  if (status) filter.status = status;
+  if (q) filter.title = { $regex: escapeRegex(q), $options: "i" };
+
+  // Query searches are not cached to avoid key explosion.
+  if (!q) {
+    const cacheKey = `incidents:${status || "all"}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+  }
+
   const incidents = await Incident.find(filter).sort({ createdAt: -1 }).limit(200);
   const items = incidents.map((i) => ({
     ...i.toObject(),
     score: scoreIncident(i),
   }));
-  res.json({ items });
+  const payload = { items };
+  if (!q) {
+    const cacheKey = `incidents:${status || "all"}`;
+    await cacheSet(cacheKey, payload, 20);
+  }
+  res.json(payload);
 });
 
 app.post("/api/incidents", auth, async (req, res) => {
@@ -141,6 +176,7 @@ app.post("/api/incidents", auth, async (req, res) => {
       entityId: incident._id,
       message: `Incident created: ${incident.title}`,
     });
+    await cacheDel([...INCIDENT_CACHE_KEYS, "analytics:summary", "activities:latest"]);
 
     res.json({ item: incident });
   } catch (e) {
@@ -170,6 +206,7 @@ app.patch("/api/incidents/:id", auth, async (req, res) => {
       message: `Incident updated: ${incident.title}`,
       metadata: data,
     });
+    await cacheDel([...INCIDENT_CACHE_KEYS, "analytics:summary", "activities:latest"]);
 
     res.json({ item: incident });
   } catch (e) {
@@ -177,10 +214,66 @@ app.patch("/api/incidents/:id", auth, async (req, res) => {
   }
 });
 
+app.post("/api/incidents/:id/auto-tasks", auth, async (req, res) => {
+  try {
+    const incident = await Incident.findById(req.params.id);
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+
+    const severityToPriority = {
+      Low: "Low",
+      Medium: "Medium",
+      High: "High",
+      Critical: "High",
+    };
+    const priority = severityToPriority[incident.severity] || "Medium";
+    const etaHours = incident.severity === "Critical" ? 2 : incident.severity === "High" ? 4 : 8;
+    const dueAt = new Date(Date.now() + etaHours * 3600 * 1000);
+
+    const base = incident.title.trim();
+    const templates = [
+      `Triage impact and identify blast radius for \"${base}\"`,
+      `Execute mitigation for \"${base}\" and verify rollback path`,
+      `Publish status update and close post-incident notes for \"${base}\"`,
+    ];
+
+    const docs = templates.map((title) => ({
+      title,
+      status: "Todo",
+      priority,
+      incident: incident._id,
+      dueAt,
+    }));
+
+    const items = await Task.insertMany(docs);
+    await logActivity({
+      actor: req.user.id,
+      type: "TASKS_AUTOGENERATED",
+      entityType: "Incident",
+      entityId: incident._id,
+      message: `Auto-generated ${items.length} tasks for incident: ${incident.title}`,
+      metadata: { priority, etaHours },
+    });
+    await cacheDel([...INCIDENT_CACHE_KEYS, "tasks:all", "analytics:summary", "activities:latest"]);
+
+    return res.json({ items });
+  } catch (e) {
+    return res.status(500).json({ message: "Failed to auto-generate tasks" });
+  }
+});
+
 // --- Tasks
 app.get("/api/tasks", auth, async (req, res) => {
-  const tasks = await Task.find({}).sort({ createdAt: -1 }).limit(200);
-  res.json({ items: tasks });
+  const q = String(req.query.q || "").trim();
+  if (!q) {
+    const cached = await cacheGet("tasks:all");
+    if (cached) return res.json(cached);
+  }
+
+  const filter = q ? { title: { $regex: escapeRegex(q), $options: "i" } } : {};
+  const tasks = await Task.find(filter).sort({ createdAt: -1 }).limit(200);
+  const payload = { items: tasks };
+  if (!q) await cacheSet("tasks:all", payload, 20);
+  res.json(payload);
 });
 
 app.post("/api/tasks", auth, async (req, res) => {
@@ -201,6 +294,7 @@ app.post("/api/tasks", auth, async (req, res) => {
       entityId: task._id,
       message: `Task created: ${task.title}`,
     });
+    await cacheDel(["tasks:all", "analytics:summary", "activities:latest"]);
 
     res.json({ item: task });
   } catch (e) {
@@ -228,6 +322,7 @@ app.patch("/api/tasks/:id", auth, async (req, res) => {
       message: `Task updated: ${task.title}`,
       metadata: data,
     });
+    await cacheDel(["tasks:all", "analytics:summary", "activities:latest"]);
 
     res.json({ item: task });
   } catch (e) {
@@ -237,6 +332,9 @@ app.patch("/api/tasks/:id", auth, async (req, res) => {
 
 // --- Analytics
 app.get("/api/analytics/summary", auth, async (req, res) => {
+  const cached = await cacheGet("analytics:summary");
+  if (cached) return res.json(cached);
+
   const [open, investigating, mitigated, resolved] = await Promise.all([
     Incident.countDocuments({ status: "Open" }),
     Incident.countDocuments({ status: "Investigating" }),
@@ -244,10 +342,17 @@ app.get("/api/analytics/summary", auth, async (req, res) => {
     Incident.countDocuments({ status: "Resolved" }),
   ]);
   const tasksOpen = await Task.countDocuments({ status: { $ne: "Done" } });
-  res.json({
+  const payload = {
     incidents: { open, investigating, mitigated, resolved },
     tasksOpen,
-  });
+  };
+  await cacheSet("analytics:summary", payload, 30);
+  res.json(payload);
+});
+
+// --- Model metadata (local scoring model)
+app.get("/api/models/priority", auth, (_req, res) => {
+  res.json({ model: getPriorityModel() });
 });
 
 // --- AI summary (local model)
@@ -272,8 +377,13 @@ app.post("/api/ai/incident-summary", auth, async (req, res) => {
 
 // --- Activities
 app.get("/api/activities", auth, async (req, res) => {
+  const cached = await cacheGet("activities:latest");
+  if (cached) return res.json(cached);
+
   const items = await Activity.find({}).sort({ createdAt: -1 }).limit(50);
-  res.json({ items });
+  const payload = { items };
+  await cacheSet("activities:latest", payload, 15);
+  res.json(payload);
 });
 
 app.get("/api/health", (_req, res) => {

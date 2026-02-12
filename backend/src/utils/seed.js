@@ -9,7 +9,7 @@ async function seed() {
   if (existing) return { ok: true, message: "Seed already present" };
 
   const admin = await User.create({
-    name: "Demo Admin",
+    name: "Platform Admin",
     email: "admin@opspilot.ai",
     passwordHash: await bcrypt.hash("Admin@123", 10),
     role: "Admin",
@@ -73,7 +73,7 @@ async function seed() {
     actor: admin._id,
     type: "SEED",
     entityType: "System",
-    message: "Seeded demo data",
+    message: "Seeded baseline data",
   });
 
   return { ok: true, message: "Seed completed" };

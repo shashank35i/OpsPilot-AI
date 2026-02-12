@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { ArrowLeftIcon, MoonIcon, SunIcon, SparklesIcon, UserCheckIcon, ShieldCheckIcon, WorkflowIcon } from "lucide-react";
+import { getTheme, setTheme } from "../lib/theme";
+import { BrandMark } from "../components/BrandMark";
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -8,6 +11,7 @@ export const Register: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [theme, setThemeState] = useState<"dark" | "light">(getTheme());
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,21 +29,75 @@ export const Register: React.FC = () => {
     }
   };
 
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setThemeState(next);
+  };
+
   return (
-    <div style={{ padding: 24, maxWidth: 420, margin: "0 auto" }}>
-      <div className="card">
-        <h2>Create account</h2>
-        <p className="muted">Launch your OpsPilot workspace.</p>
-        {error && <div style={{ color: "var(--danger)" }}>{error}</div>}
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-          <input className="input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="input" placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button className="btn primary" type="submit">Create account</button>
-        </form>
-        <div className="muted" style={{ marginTop: 12 }}>
-          Already have an account? <Link to="/login">Sign in</Link>
-        </div>
+    <div className="auth-page">
+      <header className="auth-topbar">
+        <Link to="/" className="back-link"><ArrowLeftIcon size={14} /> Back to home</Link>
+        <Link to="/login" className="btn ghost lp-btn">Sign in</Link>
+      </header>
+
+      <div className="auth-shell">
+        <section className="auth-aside">
+          <div className="auth-aside-inner">
+            <div className="badge">
+              <SparklesIcon size={14} />
+              Set up your workspace
+            </div>
+            <h1>Create an operations command center in minutes.</h1>
+            <p className="muted">
+              Spin up your workspace and onboard teams into role-based incident management.
+            </p>
+            <div className="auth-points">
+              <div><UserCheckIcon size={14} /> Team onboarding ready</div>
+              <div><ShieldCheckIcon size={14} /> Secure by default</div>
+              <div><WorkflowIcon size={14} /> Workflow templates included</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="auth-panel">
+          <div className="auth-panel-inner">
+            <div className="public-header">
+              <div className="brand-stack">
+                <BrandMark />
+                <div>
+                  <div className="brand">OpsPilot AI</div>
+                  <div className="muted" style={{ fontSize: 13 }}>Create account</div>
+                </div>
+              </div>
+              <button className="theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
+                {theme === "dark" ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+              </button>
+            </div>
+            {error && <div className="error-box">{error}</div>}
+
+            <form onSubmit={onSubmit} className="auth-form">
+              <label className="field">
+                <span>Full name</span>
+                <input className="input" placeholder="Shashank Preetham" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+              </label>
+              <label className="field">
+                <span>Email</span>
+                <input className="input" placeholder="you@company.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </label>
+              <label className="field">
+                <span>Password</span>
+                <input className="input" placeholder="Create password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </label>
+              <button className="btn primary" type="submit">Create account</button>
+            </form>
+
+            <div className="auth-actions">
+              <p className="muted">Already have an account? <Link to="/login">Sign in</Link></p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

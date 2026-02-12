@@ -1,37 +1,95 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
+type SummaryResponse = {
+  incidents: { open: number; investigating: number; mitigated: number; resolved: number };
+  tasksOpen: number;
+};
+
 export const Dashboard: React.FC = () => {
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
-    api("/api/analytics/summary")
+    api<SummaryResponse>("/api/analytics/summary")
       .then(setSummary)
       .catch(() => setSummary(null));
+    api<{ items: any[] }>("/api/activities")
+      .then((d) => setActivities(d.items || []))
+      .catch(() => setActivities([]));
   }, []);
 
   return (
-    <div className="grid grid-3">
-      <div className="card">
-        <div className="muted">Open Incidents</div>
-        <h2>{summary?.incidents?.open ?? "--"}</h2>
-      </div>
-      <div className="card">
-        <div className="muted">Investigating</div>
-        <h2>{summary?.incidents?.investigating ?? "--"}</h2>
-      </div>
-      <div className="card">
-        <div className="muted">Tasks Open</div>
-        <h2>{summary?.tasksOpen ?? "--"}</h2>
-      </div>
-      <div className="card">
-        <div className="muted">Mitigated</div>
-        <h2>{summary?.incidents?.mitigated ?? "--"}</h2>
-      </div>
-      <div className="card">
-        <div className="muted">Resolved</div>
-        <h2>{summary?.incidents?.resolved ?? "--"}</h2>
-      </div>
+    <div className="page">
+      <section className="card hero-panel">
+        <div>
+          <div className="badge">Command Overview</div>
+          <h1>Keep incidents aligned with SLAs and owners.</h1>
+          <p className="muted">
+            OpsPilot AI prioritizes workload using a local scoring model while your team executes with clear,
+            audit-ready actions.
+          </p>
+        </div>
+        <div className="kpi-grid">
+          <div className="kpi-card">
+            <span className="muted">Open incidents</span>
+            <strong>{summary?.incidents?.open ?? "--"}</strong>
+          </div>
+          <div className="kpi-card">
+            <span className="muted">Investigating</span>
+            <strong>{summary?.incidents?.investigating ?? "--"}</strong>
+          </div>
+          <div className="kpi-card">
+            <span className="muted">Tasks open</span>
+            <strong>{summary?.tasksOpen ?? "--"}</strong>
+          </div>
+          <div className="kpi-card">
+            <span className="muted">Resolved</span>
+            <strong>{summary?.incidents?.resolved ?? "--"}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-2">
+        <article className="card">
+          <div className="section-title">Live Activity</div>
+          <div className="timeline-list">
+            {activities.length === 0 && <div className="muted">No recent activity.</div>}
+            {activities.map((a) => (
+              <div key={a._id} className="timeline-item">
+                <div className="timeline-dot" />
+                <div>
+                  <div style={{ fontWeight: 600 }}>{a.message}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {new Date(a.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="section-title">Reliability Metrics</div>
+          <div className="metric-stack">
+            <div className="metric-row">
+              <div>
+                <div className="muted">SLA compliance</div>
+                <strong>96%</strong>
+              </div>
+              <div className="sla-bar"><span style={{ width: "96%" }} /></div>
+            </div>
+            <div className="metric-row">
+              <div className="muted">Mean time to mitigate</div>
+              <strong>3h 12m</strong>
+            </div>
+            <div className="metric-row">
+              <div className="muted">Escalations this week</div>
+              <strong>4</strong>
+            </div>
+          </div>
+        </article>
+      </section>
     </div>
   );
 };
