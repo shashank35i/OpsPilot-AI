@@ -11,6 +11,7 @@ export const Incidents: React.FC = () => {
   const [title, setTitle] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [busyId, setBusyId] = useState<string>("");
+  const [isCreating, setIsCreating] = useState(false);
   const [aiById, setAiById] = useState<Record<string, { summary: string; plan: string }>>({});
   const [info, setInfo] = useState("");
 
@@ -28,23 +29,41 @@ export const Incidents: React.FC = () => {
       return;
     }
 
-    const data = await api<{ items: any[] }>(`/api/incidents${query}`);
-    setItems(data.items || []);
-    writeCache(cacheKey, data, 20_000);
+    try {
+      const data = await api<{ items: any[] }>(`/api/incidents${query}`);
+      setItems(data.items || []);
+      writeCache(cacheKey, data, 20_000);
+    } catch (err: any) {
+      setItems([]);
+      setInfo(err?.message || "Failed to load incidents");
+    }
   };
 
   useEffect(() => {
-    load().catch(() => setItems([]));
+    load().catch(() => {
+      setItems([]);
+      setInfo("Failed to load incidents");
+    });
   }, [statusFilter, searchParams]);
 
   const create = async () => {
-    if (!title.trim()) return;
-    await api("/api/incidents", {
-      method: "POST",
-      body: JSON.stringify({ title, severity: "Medium", slaHours: 12 }),
-    });
-    setTitle("");
-    load();
+    const nextTitle = title.trim();
+    if (!nextTitle) return;
+    setIsCreating(true);
+    setInfo("");
+    try {
+      await api("/api/incidents", {
+        method: "POST",
+        body: JSON.stringify({ title: nextTitle, severity: "Medium", slaHours: 12 }),
+      });
+      setTitle("");
+      await load();
+      setInfo("Incident created successfully.");
+    } catch (err: any) {
+      setInfo(err?.message || "Failed to create incident");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const updateIncidentStatus = async (id: string, status: string) => {
@@ -110,7 +129,9 @@ export const Incidents: React.FC = () => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <button className="btn primary" onClick={create}>Create</button>
+          <button className="btn primary" onClick={create} disabled={isCreating}>
+            {isCreating ? "Creating..." : "Create"}
+          </button>
         </div>
         {info ? <div className="muted">{info}</div> : null}
       </section>
