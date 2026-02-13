@@ -19,6 +19,7 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 
 ## Table of Contents
 - [What It Does](#what-it-does)
+- [Demo](#demo)
 - [Core Features](#core-features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
@@ -42,6 +43,11 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 - Generate AI incident briefs and action plans
 - Auto-create remediation tasks from incidents
 - Monitor activity and analytics with role-based access
+
+---
+
+## Demo
+![OpsPilot Demo](demos/opspilot_demo.gif)
 
 ---
 
