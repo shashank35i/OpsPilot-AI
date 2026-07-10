@@ -1,14 +1,21 @@
-﻿FROM node:20-alpine
+FROM maven:3.9-eclipse-temurin-17 AS build
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY pom.xml ./
+RUN mvn -q -DskipTests dependency:go-offline
 
 COPY src ./src
-COPY .env.example ./
+RUN mvn -q -DskipTests package
 
-ENV NODE_ENV=production
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache wget
+
+COPY --from=build /app/target/opspilot-backend-*.jar app.jar
+
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["java", "-jar", "app.jar"]

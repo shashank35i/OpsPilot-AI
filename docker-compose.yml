@@ -1,16 +1,19 @@
-﻿services:
-  mongo:
-    image: mongo:7
-    container_name: opspilot-mongo
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: opspilot-mysql
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "3306:3306"
     environment:
-      MONGO_INITDB_DATABASE: opspilot
+      MYSQL_DATABASE: opspilot
+      MYSQL_USER: opspilot
+      MYSQL_PASSWORD: opspilot
+      MYSQL_ROOT_PASSWORD: opspilot_root
     volumes:
-      - mongo_data:/data/db
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
       interval: 10s
       timeout: 5s
       retries: 8
@@ -38,15 +41,20 @@
     restart: unless-stopped
     environment:
       PORT: 8080
-      MONGO_URL: mongodb://mongo:27017/opspilot
+      DATABASE_URL: jdbc:mysql://mysql:3306/opspilot?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DATABASE_USERNAME: opspilot
+      DATABASE_PASSWORD: opspilot
       JWT_SECRET: change_me
       CLIENT_ORIGIN: http://localhost:5173
       REDIS_URL: redis://redis:6379
       SEED_ON_START: "1"
+      SLA_OVERDUE_SCHEDULER_ENABLED: "true"
+      SLA_OVERDUE_SCHEDULER_DELAY_MS: "60000"
+      SLA_OVERDUE_BATCH_SIZE: "100"
     ports:
       - "8080:8080"
     depends_on:
-      mongo:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -76,5 +84,5 @@
       retries: 8
 
 volumes:
-  mongo_data:
+  mysql_data:
   redis_data:

@@ -1,0 +1,38 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: opspilot-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/opspilot?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DATABASE_USERNAME:opspilot}
+    password: ${DATABASE_PASSWORD:opspilot}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          time_zone: UTC
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+opspilot:
+  client-origin: ${CLIENT_ORIGIN:http://localhost:5173}
+  jwt-secret: ${JWT_SECRET:dev_secret_change}
+  jwt-ttl-hours: ${JWT_TTL_HOURS:8}
+  seed-on-start: ${SEED_ON_START:0}
+  version: ${APP_VERSION:1.0.0}
+  sla-overdue-scheduler-enabled: ${SLA_OVERDUE_SCHEDULER_ENABLED:true}
+  sla-overdue-scheduler-delay-ms: ${SLA_OVERDUE_SCHEDULER_DELAY_MS:60000}
+  sla-overdue-batch-size: ${SLA_OVERDUE_BATCH_SIZE:100}

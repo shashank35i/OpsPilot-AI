@@ -15,7 +15,8 @@ export const Profile: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
+    await api("/api/auth/logout", { method: "POST" }).catch(() => {});
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");

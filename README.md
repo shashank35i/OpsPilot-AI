@@ -7,8 +7,8 @@
 A full-stack operations command center for incident triage, SLA tracking, execution workflows, analytics, and audit visibility.
 
 ![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react&logoColor=white)
-![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933?logo=node.js&logoColor=white)
-![MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248?logo=mongodb&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot-6DB33F?logo=springboot&logoColor=white)
+![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Cache-Redis-DC382D?logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Containerized-Docker-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
@@ -52,8 +52,10 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 ---
 
 ## Core Features
-- JWT authentication with role-based access (`Admin`, `Manager`, `Agent`)
+- Hybrid JWT + server-side session authentication with token blacklist revocation
+- Role-based access metadata (`Admin`, `Manager`, `Agent`)
 - Incident queue with SLA bars, status badges, severity, and score
+- Scheduled SLA overdue detection for unresolved incidents past due time
 - Incident actions: status transitions, AI brief, and auto task generation
 - Task board with in-place status/priority updates
 - Analytics summary (open/investigating/mitigated/resolved + tasks open)
@@ -73,12 +75,14 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 - Lucide Icons
 
 ### Backend
-- Node.js
-- Express
-- MongoDB + Mongoose
-- Redis (`ioredis`)
-- Zod validation
-- JWT auth
+- Java 17
+- Spring Boot
+- Spring Security
+- Spring Data JPA
+- MySQL
+- Spring Data Redis
+- Bean Validation
+- Hybrid JWT + session auth with blacklisted-token revocation
 
 ### Tooling
 - Docker / Docker Compose
@@ -92,10 +96,10 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 Browser (React/Vite UI)
         |
         v
-Express API (JWT + RBAC + AI helpers)
+Spring Boot API (JWT + sessions + blacklist + AI helpers)
         |                 \
         v                  v
-   MongoDB (source)     Redis (cache)
+   MySQL (source)      Redis (cache)
 ```
 
 ---
@@ -132,8 +136,7 @@ docker compose down -v
 ```bash
 cd backend
 cp .env.example .env
-npm install
-npm run dev
+mvn spring-boot:run
 ```
 
 ### Frontend
@@ -161,11 +164,17 @@ npm run dev
 | Variable | Required | Example |
 |---|---|---|
 | `PORT` | Yes | `8080` |
-| `MONGO_URL` | Yes | `mongodb://localhost:27017/opspilot` |
+| `DATABASE_URL` | Yes | `jdbc:mysql://localhost:3306/opspilot?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
+| `DATABASE_USERNAME` | Yes | `opspilot` |
+| `DATABASE_PASSWORD` | Yes | `opspilot` |
 | `JWT_SECRET` | Yes | `change_me` |
+| `JWT_TTL_HOURS` | Optional | `8` |
 | `CLIENT_ORIGIN` | Yes | `http://localhost:5173` |
 | `REDIS_URL` | Optional | `redis://localhost:6379` |
 | `SEED_ON_START` | Optional | `1` |
+| `SLA_OVERDUE_SCHEDULER_ENABLED` | Optional | `true` |
+| `SLA_OVERDUE_SCHEDULER_DELAY_MS` | Optional | `60000` |
+| `SLA_OVERDUE_BATCH_SIZE` | Optional | `100` |
 
 ### Frontend (`frontend/.env`)
 | Variable | Required | Example |
@@ -179,6 +188,7 @@ npm run dev
 ### Auth
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/logout`
 - `GET /api/auth/me`
 
 ### Incidents
@@ -215,18 +225,18 @@ npm run test:e2e
 ## Deployment
 
 ### Railway (recommended)
-1. Create `MongoDB` service
+1. Create `MySQL` service
 2. (Recommended) Create `Redis` service
 3. Deploy backend service from `/backend`
-4. Set backend env vars (`MONGO_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, optional `REDIS_URL`)
+4. Set backend env vars (`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `CLIENT_ORIGIN`, optional `REDIS_URL`, `JWT_TTL_HOURS`)
 5. Deploy frontend service from `/frontend` (or Cloudflare Pages)
 
 ---
 
 ## Troubleshooting
-- If backend exits with `Missing MONGO_URL`, set `MONGO_URL` in backend env.
+- If backend cannot connect to the database, verify `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD`.
 - If CORS fails, verify `CLIENT_ORIGIN` exactly matches frontend origin.
-- If Docker healthchecks fail, wait for MongoDB bootstrap to finish.
+- If Docker healthchecks fail, wait for MySQL bootstrap to finish.
 - Vite warns on Node `20.17.0`; recommended `20.19+` or `22.12+`.
 
 ---
