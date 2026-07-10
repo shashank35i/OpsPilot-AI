@@ -3,40 +3,25 @@ import { api } from "../lib/api";
 import { readCache, writeCache } from "../lib/cache";
 import { InboxIcon } from "lucide-react";
 
-type SummaryResponse = {
-  incidents: { open: number; investigating: number; mitigated: number; resolved: number };
-  tasksOpen: number;
-};
-
-type PriorityModel = {
-  name: string;
-  version: string;
-  weights: {
-    severity: Record<string, number>;
-    status: Record<string, number>;
-  };
-  thresholds: Array<{ label: string; min: number }>;
-};
-
-export const Analytics: React.FC = () => {
-  const [summary, setSummary] = useState<SummaryResponse | null>(null);
-  const [model, setModel] = useState<PriorityModel | null>(null);
+export const Analytics = () => {
+  const [summary, setSummary] = useState(null);
+  const [model, setModel] = useState(null);
 
   useEffect(() => {
-    const cachedSummary = readCache<SummaryResponse>("analytics:summary");
-    const cachedModel = readCache<{ model: PriorityModel }>("analytics:model");
+    const cachedSummary = readCache("analytics:summary");
+    const cachedModel = readCache("analytics:model");
     if (cachedSummary) setSummary(cachedSummary);
     if (cachedModel?.model) setModel(cachedModel.model);
     if (cachedSummary && cachedModel?.model) return;
 
-    api<SummaryResponse>("/api/analytics/summary")
+    api("/api/analytics/summary")
       .then((data) => {
         setSummary(data);
         writeCache("analytics:summary", data, 30_000);
       })
       .catch(() => setSummary(null));
 
-    api<{ model: PriorityModel }>("/api/models/priority")
+    api("/api/models/priority")
       .then((d) => {
         setModel(d.model);
         writeCache("analytics:model", d, 60_000);

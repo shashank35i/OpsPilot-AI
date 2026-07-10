@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { Landing } from "./pages/Landing";
@@ -10,15 +9,13 @@ import { Tasks } from "./pages/Tasks";
 import { Analytics } from "./pages/Analytics";
 import { Profile } from "./pages/Profile";
 
-type ProtectedProps = { children: ReactNode };
-
-const Protected = ({ children }: ProtectedProps) => {
+const Protected = ({ children }) => {
   const token = localStorage.getItem("token");
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
-const PublicOnly = ({ children }: ProtectedProps) => {
+const PublicOnly = ({ children }) => {
   const token = localStorage.getItem("token");
   if (token) return <Navigate to="/app" replace />;
   return <>{children}</>;

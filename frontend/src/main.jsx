@@ -7,7 +7,7 @@ import { initTheme } from "./lib/theme";
 
 initTheme();
 
-ReactDOM.createRoot(document.getElementById("app")!).render(
+ReactDOM.createRoot(document.getElementById("app")).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />

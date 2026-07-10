@@ -93,15 +93,15 @@ const navInfo = [
     label: "Architecture",
     items: [
       "React + Vite frontend with mobile-first navigation",
-      "Express + MongoDB APIs with JWT auth and RBAC",
+      "Spring Boot + MySQL APIs with hybrid JWT/session auth",
       "Redis optional cache for high-read endpoints",
     ],
   },
 ];
 
-export const Landing: React.FC = () => {
-  const [theme, setThemeState] = React.useState<"dark" | "light">(getTheme());
-  const [activeMenu, setActiveMenu] = React.useState<string>("");
+export const Landing = () => {
+  const [theme, setThemeState] = React.useState(getTheme());
+  const [activeMenu, setActiveMenu] = React.useState("");
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -255,7 +255,7 @@ export const Landing: React.FC = () => {
               </div>
               <h3>Launch full-stack ops software without boilerplate overhead</h3>
               <p>
-                MongoDB, Redis cache acceleration, role-based portals, and actionable incident workflows are
+                MySQL, Redis cache acceleration, role-based portals, and actionable incident workflows are
                 production-ready
                 for Railway deployments.
               </p>

@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
-export const Profile: React.FC = () => {
+export const Profile = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "{}") || {});
+  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem("user") || "{}") || {});
 
   useEffect(() => {
-    api<{ user: any }>("/api/auth/me")
+    api("/api/auth/me")
       .then((d) => {
         setUser(d.user || {});
         localStorage.setItem("user", JSON.stringify(d.user || {}));

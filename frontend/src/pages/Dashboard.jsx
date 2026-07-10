@@ -3,28 +3,16 @@ import { API_BASE, api } from "../lib/api";
 import { readCache, writeCache } from "../lib/cache";
 import { InboxIcon } from "lucide-react";
 
-type SummaryResponse = {
-  incidents: { open: number; investigating: number; mitigated: number; resolved: number };
-  tasksOpen: number;
-};
-
-type HealthResponse = {
-  ok: boolean;
-  service?: string;
-  version?: string;
-  uptimeSeconds?: number;
-};
-
-export const Dashboard: React.FC = () => {
-  const [summary, setSummary] = useState<SummaryResponse | null>(null);
-  const [activities, setActivities] = useState<any[]>([]);
-  const [health, setHealth] = useState<HealthResponse | null>(null);
+export const Dashboard = () => {
+  const [summary, setSummary] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [health, setHealth] = useState(null);
   const releaseTag = import.meta.env.VITE_APP_RELEASE || "prod";
 
   useEffect(() => {
-    const cachedSummary = readCache<SummaryResponse>("dashboard:summary");
-    const cachedActivities = readCache<{ items: any[] }>("dashboard:activities");
-    const cachedHealth = readCache<HealthResponse>("dashboard:health");
+    const cachedSummary = readCache("dashboard:summary");
+    const cachedActivities = readCache("dashboard:activities");
+    const cachedHealth = readCache("dashboard:health");
 
     if (cachedSummary) setSummary(cachedSummary);
     if (cachedActivities?.items) setActivities(cachedActivities.items);
@@ -32,14 +20,14 @@ export const Dashboard: React.FC = () => {
 
     if (cachedSummary && cachedActivities?.items && cachedHealth) return;
 
-    api<SummaryResponse>("/api/analytics/summary")
+    api("/api/analytics/summary")
       .then((data) => {
         setSummary(data);
         writeCache("dashboard:summary", data, 30_000);
       })
       .catch(() => setSummary(null));
 
-    api<{ items: any[] }>("/api/activities")
+    api("/api/activities")
       .then((d) => {
         setActivities(d.items || []);
         writeCache("dashboard:activities", d, 15_000);

@@ -5,14 +5,14 @@ import { incidentBadges, slaProgress, slaTone, timeLeft } from "../lib/format";
 import { readCache, writeCache } from "../lib/cache";
 import { InboxIcon } from "lucide-react";
 
-export const Incidents: React.FC = () => {
+export const Incidents = () => {
   const [searchParams] = useSearchParams();
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState([]);
   const [title, setTitle] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [busyId, setBusyId] = useState<string>("");
+  const [busyId, setBusyId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [aiById, setAiById] = useState<Record<string, { summary: string; plan: string }>>({});
+  const [aiById, setAiById] = useState({});
   const [info, setInfo] = useState("");
 
   const load = async () => {
@@ -23,17 +23,17 @@ export const Incidents: React.FC = () => {
     const query = params.toString() ? `?${params.toString()}` : "";
     const cacheKey = `incidents:list:${params.toString() || "all"}`;
 
-    const cached = readCache<{ items: any[] }>(cacheKey);
+    const cached = readCache(cacheKey);
     if (cached?.items) {
       setItems(cached.items);
       return;
     }
 
     try {
-      const data = await api<{ items: any[] }>(`/api/incidents${query}`);
+      const data = await api(`/api/incidents${query}`);
       setItems(data.items || []);
       writeCache(cacheKey, data, 20_000);
-    } catch (err: any) {
+    } catch (err) {
       setItems([]);
       setInfo(err?.message || "Failed to load incidents");
     }
@@ -59,14 +59,14 @@ export const Incidents: React.FC = () => {
       setTitle("");
       await load();
       setInfo("Incident created successfully.");
-    } catch (err: any) {
+    } catch (err) {
       setInfo(err?.message || "Failed to create incident");
     } finally {
       setIsCreating(false);
     }
   };
 
-  const updateIncidentStatus = async (id: string, status: string) => {
+  const updateIncidentStatus = async (id, status) => {
     setBusyId(id);
     setInfo("");
     try {
@@ -80,11 +80,11 @@ export const Incidents: React.FC = () => {
     }
   };
 
-  const generateAiBrief = async (id: string) => {
+  const generateAiBrief = async (id) => {
     setBusyId(id);
     setInfo("");
     try {
-      const data = await api<{ summary: string; plan: string }>("/api/ai/incident-summary", {
+      const data = await api("/api/ai/incident-summary", {
         method: "POST",
         body: JSON.stringify({ incidentId: id }),
       });
@@ -94,11 +94,11 @@ export const Incidents: React.FC = () => {
     }
   };
 
-  const createAutoTasks = async (id: string) => {
+  const createAutoTasks = async (id) => {
     setBusyId(id);
     setInfo("");
     try {
-      const data = await api<{ items: any[] }>(`/api/incidents/${id}/auto-tasks`, { method: "POST" });
+      const data = await api(`/api/incidents/${id}/auto-tasks`, { method: "POST" });
       setInfo(`Created ${data.items?.length || 0} execution tasks for this incident.`);
     } finally {
       setBusyId("");
@@ -165,8 +165,7 @@ export const Incidents: React.FC = () => {
                 </tr>
               ) : null}
               {items.map((i) => {
-                const statusKey = i.status as keyof typeof incidentBadges;
-                const badge = incidentBadges[statusKey] || { label: i.status, tone: "neutral" };
+                const badge = incidentBadges[i.status] || { label: i.status, tone: "neutral" };
                 const sla = slaProgress(i.dueAt, i.createdAt);
                 const tone = slaTone(i.dueAt);
                 return (

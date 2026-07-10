@@ -22,10 +22,10 @@ const navItems = [
   { to: "/app/profile", label: "Profile", Icon: UserIcon },
 ];
 
-export const AppShell: React.FC = () => {
+export const AppShell = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [theme, setThemeState] = React.useState<"dark" | "light">(getTheme());
+  const [theme, setThemeState] = React.useState(getTheme());
   const [search, setSearch] = React.useState("");
   const user = React.useMemo(() => {
     try {
@@ -46,7 +46,7 @@ export const AppShell: React.FC = () => {
     setSearch(params.get("q") || "");
   }, [location.search]);
 
-  const onSearchSubmit = (e: React.FormEvent) => {
+  const onSearchSubmit = (e) => {
     e.preventDefault();
     const q = search.trim();
     if (!q) {

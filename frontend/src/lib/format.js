@@ -1,19 +1,17 @@
-type Tone = "danger" | "warning" | "success" | "neutral";
-
 const incidentBadges = {
   Open: { label: "Open", tone: "danger" },
   Investigating: { label: "Investigating", tone: "warning" },
   Mitigated: { label: "Mitigated", tone: "success" },
   Resolved: { label: "Resolved", tone: "neutral" },
-} as const;
+};
 
 const taskBadges = {
   Todo: { label: "Todo", tone: "neutral" },
   "In Progress": { label: "In Progress", tone: "warning" },
   Done: { label: "Done", tone: "success" },
-} as const;
+};
 
-function timeLeft(dueAt?: string | Date | null) {
+function timeLeft(dueAt) {
   if (!dueAt) return "No SLA";
   const diff = new Date(dueAt).getTime() - Date.now();
   if (diff <= 0) return "SLA breached";
@@ -22,7 +20,7 @@ function timeLeft(dueAt?: string | Date | null) {
   return `${hours}h ${mins}m left`;
 }
 
-function slaProgress(dueAt?: string | Date | null, createdAt?: string | Date | null) {
+function slaProgress(dueAt, createdAt) {
   if (!dueAt || !createdAt) return 0;
   const start = new Date(createdAt).getTime();
   const end = new Date(dueAt).getTime();
@@ -32,7 +30,7 @@ function slaProgress(dueAt?: string | Date | null, createdAt?: string | Date | n
   return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
 }
 
-function slaTone(dueAt?: string | Date | null): Tone {
+function slaTone(dueAt) {
   if (!dueAt) return "neutral";
   const diff = new Date(dueAt).getTime() - Date.now();
   if (diff <= 0) return "danger";

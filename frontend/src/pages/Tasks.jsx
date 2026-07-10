@@ -5,9 +5,9 @@ import { taskBadges } from "../lib/format";
 import { readCache, writeCache } from "../lib/cache";
 import { InboxIcon } from "lucide-react";
 
-export const Tasks: React.FC = () => {
+export const Tasks = () => {
   const [searchParams] = useSearchParams();
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState([]);
   const [title, setTitle] = useState("");
   const [busyId, setBusyId] = useState("");
 
@@ -16,13 +16,13 @@ export const Tasks: React.FC = () => {
     const query = q ? `?q=${encodeURIComponent(q)}` : "";
     const cacheKey = `tasks:list:${q || "all"}`;
 
-    const cached = readCache<{ items: any[] }>(cacheKey);
+    const cached = readCache(cacheKey);
     if (cached?.items) {
       setItems(cached.items);
       return;
     }
 
-    const d = await api<{ items: any[] }>(`/api/tasks${query}`);
+    const d = await api(`/api/tasks${query}`);
     setItems(d.items || []);
     writeCache(cacheKey, d, 20_000);
   };
@@ -38,7 +38,7 @@ export const Tasks: React.FC = () => {
     load();
   };
 
-  const updateTask = async (id: string, payload: { status?: string; priority?: string }) => {
+  const updateTask = async (id, payload) => {
     setBusyId(id);
     try {
       await api(`/api/tasks/${id}`, {
@@ -94,8 +94,7 @@ export const Tasks: React.FC = () => {
                 </tr>
               ) : null}
               {items.map((i) => {
-                const statusKey = i.status as keyof typeof taskBadges;
-                const badge = taskBadges[statusKey] || { label: i.status, tone: "neutral" };
+                const badge = taskBadges[i.status] || { label: i.status, tone: "neutral" };
                 return (
                   <tr key={i._id}>
                     <td>{i.title}</td>

@@ -4,7 +4,7 @@ export function getToken() {
   return localStorage.getItem("token") || "";
 }
 
-function normalizeErrorMessage(data: any): string {
+function normalizeErrorMessage(data) {
   const fallback = "Request failed";
   const raw = data?.message ?? data?.error ?? fallback;
   if (typeof raw !== "string") return fallback;
@@ -28,7 +28,7 @@ function normalizeErrorMessage(data: any): string {
   return raw || fallback;
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function api(path, options = {}) {
   const token = getToken();
   const headers = new Headers(options.headers || {});
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
@@ -37,5 +37,5 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(normalizeErrorMessage(data));
-  return data as T;
+  return data;
 }

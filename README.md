@@ -70,7 +70,7 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 ### Frontend
 - React 18
 - Vite
-- TypeScript
+- JavaScript
 - React Router
 - Lucide Icons
 
