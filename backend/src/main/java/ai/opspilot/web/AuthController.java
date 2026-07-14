@@ -29,8 +29,8 @@ public class AuthController {
 
   @PostMapping("/register")
   Map<String, Object> register(@Valid @RequestBody RegisterRequest request) {
-    validateRole(request.role());
-    return authService.register(request.name(), request.email(), request.password(), request.role());
+    validatePublicRole(request.role());
+    return authService.register(request.name(), request.email(), request.password(), "Reporter");
   }
 
   @PostMapping("/login")
@@ -50,9 +50,9 @@ public class AuthController {
     return Map.of("user", AuthService.publicUser(user));
   }
 
-  private static void validateRole(String role) {
-    if (role != null && !role.isBlank() && !role.matches("Admin|Manager|Agent")) {
-      throw new IllegalArgumentException("Invalid role");
+  private static void validatePublicRole(String role) {
+    if (role != null && !role.isBlank() && !"Reporter".equals(role)) {
+      throw new IllegalArgumentException("Public registration is limited to Reporter users");
     }
   }
 

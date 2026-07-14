@@ -14,7 +14,9 @@ import java.util.List;
 @Table(name = "incidents", indexes = {
     @Index(name = "idx_incidents_status_created", columnList = "status, created_at"),
     @Index(name = "idx_incidents_sla_due", columnList = "sla_overdue, due_at, status"),
-    @Index(name = "idx_incidents_due", columnList = "due_at")
+    @Index(name = "idx_incidents_due", columnList = "due_at"),
+    @Index(name = "idx_incidents_assignee_created", columnList = "assignee, created_at"),
+    @Index(name = "idx_incidents_review", columnList = "severity_review_status")
 })
 public class Incident extends BaseEntity {
   @Column(nullable = false)
@@ -22,6 +24,14 @@ public class Incident extends BaseEntity {
   @Column(columnDefinition = "TEXT")
   private String description = "";
   private String severity = "Medium";
+  @Column(name = "reported_severity")
+  private String reportedSeverity = "Medium";
+  @Column(name = "gemini_severity")
+  private String geminiSeverity;
+  @Column(name = "severity_review_status")
+  private String severityReviewStatus = "Approved";
+  @Column(name = "severity_review_reason", columnDefinition = "TEXT")
+  private String severityReviewReason = "";
   private String status = "Open";
   @Column(length = 36)
   private String owner;
@@ -38,6 +48,14 @@ public class Incident extends BaseEntity {
   private boolean slaOverdue = false;
   @Column(name = "sla_overdue_at")
   private Instant slaOverdueAt;
+  @Column(name = "sla_near_alerted", nullable = false)
+  private boolean slaNearAlerted = false;
+  @Column(name = "unassigned_alerted", nullable = false)
+  private boolean unassignedAlerted = false;
+  @Column(name = "assigned_at")
+  private Instant assignedAt;
+  @Column(name = "resolved_at")
+  private Instant resolvedAt;
 
   @JsonProperty("_id")
   public String getJsonId() { return id; }
@@ -48,6 +66,14 @@ public class Incident extends BaseEntity {
   public void setDescription(String description) { this.description = description; }
   public String getSeverity() { return severity; }
   public void setSeverity(String severity) { this.severity = severity; }
+  public String getReportedSeverity() { return reportedSeverity; }
+  public void setReportedSeverity(String reportedSeverity) { this.reportedSeverity = reportedSeverity; }
+  public String getGeminiSeverity() { return geminiSeverity; }
+  public void setGeminiSeverity(String geminiSeverity) { this.geminiSeverity = geminiSeverity; }
+  public String getSeverityReviewStatus() { return severityReviewStatus; }
+  public void setSeverityReviewStatus(String severityReviewStatus) { this.severityReviewStatus = severityReviewStatus; }
+  public String getSeverityReviewReason() { return severityReviewReason; }
+  public void setSeverityReviewReason(String severityReviewReason) { this.severityReviewReason = severityReviewReason; }
   public String getStatus() { return status; }
   public void setStatus(String status) { this.status = status; }
   public String getOwner() { return owner; }
@@ -64,4 +90,12 @@ public class Incident extends BaseEntity {
   public void setSlaOverdue(boolean slaOverdue) { this.slaOverdue = slaOverdue; }
   public Instant getSlaOverdueAt() { return slaOverdueAt; }
   public void setSlaOverdueAt(Instant slaOverdueAt) { this.slaOverdueAt = slaOverdueAt; }
+  public boolean isSlaNearAlerted() { return slaNearAlerted; }
+  public void setSlaNearAlerted(boolean slaNearAlerted) { this.slaNearAlerted = slaNearAlerted; }
+  public boolean isUnassignedAlerted() { return unassignedAlerted; }
+  public void setUnassignedAlerted(boolean unassignedAlerted) { this.unassignedAlerted = unassignedAlerted; }
+  public Instant getAssignedAt() { return assignedAt; }
+  public void setAssignedAt(Instant assignedAt) { this.assignedAt = assignedAt; }
+  public Instant getResolvedAt() { return resolvedAt; }
+  public void setResolvedAt(Instant resolvedAt) { this.resolvedAt = resolvedAt; }
 }

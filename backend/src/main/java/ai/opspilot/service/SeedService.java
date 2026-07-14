@@ -25,6 +25,7 @@ public class SeedService implements ApplicationRunner {
   private final TaskRepository tasks;
   private final ActivityRepository activities;
   private final PasswordEncoder passwordEncoder;
+  private final SlaPolicyService slaPolicies;
 
   public SeedService(
       AppProperties properties,
@@ -32,7 +33,8 @@ public class SeedService implements ApplicationRunner {
       IncidentRepository incidents,
       TaskRepository tasks,
       ActivityRepository activities,
-      PasswordEncoder passwordEncoder
+      PasswordEncoder passwordEncoder,
+      SlaPolicyService slaPolicies
   ) {
     this.properties = properties;
     this.users = users;
@@ -40,24 +42,26 @@ public class SeedService implements ApplicationRunner {
     this.tasks = tasks;
     this.activities = activities;
     this.passwordEncoder = passwordEncoder;
+    this.slaPolicies = slaPolicies;
   }
 
   @Override
   public void run(ApplicationArguments args) {
+    slaPolicies.seedDefaults();
     if (!properties.shouldSeed() || users.findByEmail("admin@opspilot.ai").isPresent()) return;
 
     User admin = user("Platform Admin", "admin@opspilot.ai", "Admin@123", "Admin");
-    User manager = user("Ops Manager", "manager@opspilot.ai", "Manager@123", "Manager");
-    User agent = user("Response Agent", "agent@opspilot.ai", "Agent@123", "Agent");
-    users.saveAll(List.of(admin, manager, agent));
+    User responder = user("Response Lead", "responder@opspilot.ai", "Responder@123", "Responder");
+    User reporter = user("Service Reporter", "reporter@opspilot.ai", "Reporter@123", "Reporter");
+    users.saveAll(List.of(admin, responder, reporter));
 
     Incident payment = incident(
         "Payment gateway latency spike",
         "Increased latency on checkout payments in US-East.",
         "High",
         "Investigating",
-        manager.getId(),
-        agent.getId(),
+        reporter.getId(),
+        responder.getId(),
         6,
         List.of("payments", "latency")
     );
@@ -66,8 +70,8 @@ public class SeedService implements ApplicationRunner {
         "Crash reports from iOS 17 users.",
         "Critical",
         "Open",
-        manager.getId(),
-        agent.getId(),
+        reporter.getId(),
+        responder.getId(),
         4,
         List.of("mobile", "crash")
     );
@@ -76,8 +80,8 @@ public class SeedService implements ApplicationRunner {
         "Warehouse sync running 30 mins behind.",
         "Medium",
         "Mitigated",
-        admin.getId(),
-        agent.getId(),
+        reporter.getId(),
+        responder.getId(),
         12,
         List.of("inventory")
     );

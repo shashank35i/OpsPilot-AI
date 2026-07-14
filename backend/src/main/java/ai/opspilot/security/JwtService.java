@@ -48,7 +48,7 @@ public class JwtService {
         stringClaim(claims, "id", claims.getSubject()),
         stringClaim(claims, "email", ""),
         stringClaim(claims, "name", ""),
-        stringClaim(claims, "role", "Agent"),
+        stringClaim(claims, "role", "Reporter"),
         stringClaim(claims, "sid", ""),
         claims.getId(),
         claims.getExpiration().toInstant()

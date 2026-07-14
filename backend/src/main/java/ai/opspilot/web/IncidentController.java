@@ -4,10 +4,13 @@ import ai.opspilot.model.Incident;
 import ai.opspilot.model.Task;
 import ai.opspilot.repo.IncidentRepository;
 import ai.opspilot.repo.TaskRepository;
+import ai.opspilot.security.RoleGuard;
 import ai.opspilot.security.UserPrincipal;
 import ai.opspilot.service.ActivityService;
 import ai.opspilot.service.CacheService;
+import ai.opspilot.service.GeminiService;
 import ai.opspilot.service.PriorityService;
+import ai.opspilot.service.SlaPolicyService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -39,19 +42,28 @@ public class IncidentController {
   private final PriorityService priority;
   private final ActivityService activity;
   private final CacheService cache;
+  private final RoleGuard roles;
+  private final GeminiService gemini;
+  private final SlaPolicyService slaPolicies;
 
   public IncidentController(
       IncidentRepository incidents,
       TaskRepository tasks,
       PriorityService priority,
       ActivityService activity,
-      CacheService cache
+      CacheService cache,
+      RoleGuard roles,
+      GeminiService gemini,
+      SlaPolicyService slaPolicies
   ) {
     this.incidents = incidents;
     this.tasks = tasks;
     this.priority = priority;
     this.activity = activity;
     this.cache = cache;
+    this.roles = roles;
+    this.gemini = gemini;
+    this.slaPolicies = slaPolicies;
   }
 
   @GetMapping("/incidents")
@@ -83,31 +95,43 @@ public class IncidentController {
 
   @PostMapping("/incidents")
   Map<String, Object> create(@AuthenticationPrincipal UserPrincipal user, @Valid @RequestBody IncidentCreateRequest request) {
+    roles.requireReporter(user);
     validateSeverity(request.severity());
+    String reportedSeverity = defaultValue(request.severity(), "Medium");
+    var assessment = gemini.assessSeverity(request.title(), request.description(), reportedSeverity);
+    String lockedSeverity = assessment.matchesReporter() ? reportedSeverity : assessment.predictedSeverity();
+    int slaMinutes = slaPolicies.thresholdMinutesFor(lockedSeverity);
+
     Incident incident = new Incident();
     incident.setTitle(request.title().trim());
     incident.setDescription(request.description() == null ? "" : request.description());
-    incident.setSeverity(defaultValue(request.severity(), "Medium"));
+    incident.setReportedSeverity(reportedSeverity);
+    incident.setGeminiSeverity(assessment.predictedSeverity());
+    incident.setSeverity(lockedSeverity);
+    incident.setSeverityReviewStatus(assessment.matchesReporter() ? "Approved" : "NeedsReview");
+    incident.setSeverityReviewReason(assessment.reason());
     incident.setOwner(user.id());
     incident.setTags(request.tags());
-    incident.setSlaHours(request.slaHours() == null ? 24 : request.slaHours());
-    if (request.slaHours() != null) {
-      incident.setDueAt(Instant.now().plus(Duration.ofHours(request.slaHours())));
-    }
+    incident.setSlaHours(Math.max(1, (int) Math.ceil(slaMinutes / 60.0)));
+    incident.setDueAt(Instant.now().plus(Duration.ofMinutes(slaMinutes)));
     incidents.save(incident);
     activity.log(user.id(), "INCIDENT_CREATED", "Incident", incident.getId(), "Incident created: " + incident.getTitle());
+    if (!assessment.matchesReporter()) {
+      activity.log(user.id(), "SEVERITY_REVIEW_REQUIRED", "Incident", incident.getId(), assessment.reason());
+    }
     cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
     return Map.of("item", incident);
   }
 
   @PatchMapping("/incidents/{id}")
   Map<String, Object> update(@AuthenticationPrincipal UserPrincipal user, @PathVariable String id, @RequestBody IncidentUpdateRequest request) {
+    roles.requireResponder(user);
     validateSeverity(request.severity());
     validateIncidentStatus(request.status());
     Incident incident = incidents.findById(id).orElseThrow(() -> new IllegalArgumentException("Incident not found"));
     Map<String, Object> metadata = new LinkedHashMap<>();
     if (request.status() != null) { incident.setStatus(request.status()); metadata.put("status", request.status()); }
-    if (request.assignee() != null) { incident.setAssignee(request.assignee()); metadata.put("assignee", request.assignee()); }
+    if (request.assignee() != null) { incident.setAssignee(request.assignee()); incident.setAssignedAt(Instant.now()); metadata.put("assignee", request.assignee()); }
     if (request.severity() != null) { incident.setSeverity(request.severity()); metadata.put("severity", request.severity()); }
     if (request.description() != null) { incident.setDescription(request.description()); metadata.put("description", request.description()); }
     if (request.tags() != null) { incident.setTags(request.tags()); metadata.put("tags", request.tags()); }
@@ -119,6 +143,7 @@ public class IncidentController {
 
   @PostMapping("/incidents/{id}/auto-tasks")
   Map<String, Object> autoTasks(@AuthenticationPrincipal UserPrincipal user, @PathVariable String id) {
+    roles.requireResponder(user);
     Incident incident = incidents.findById(id).orElseThrow(() -> new IllegalArgumentException("Incident not found"));
     String priorityValue = "Critical".equals(incident.getSeverity()) || "High".equals(incident.getSeverity()) ? "High" : defaultValue(incident.getSeverity(), "Medium");
     int etaHours = "Critical".equals(incident.getSeverity()) ? 2 : "High".equals(incident.getSeverity()) ? 4 : 8;
@@ -145,6 +170,54 @@ public class IncidentController {
     return Map.of("items", created);
   }
 
+  @PostMapping("/incidents/{id}/claim")
+  Map<String, Object> claim(@AuthenticationPrincipal UserPrincipal user, @PathVariable String id) {
+    roles.requireResponder(user);
+    Incident incident = incidents.findById(id).orElseThrow(() -> new IllegalArgumentException("Incident not found"));
+    if (incident.getAssignee() != null && !incident.getAssignee().isBlank()) {
+      throw new IllegalArgumentException("Incident already assigned");
+    }
+    incident.setAssignee(user.id());
+    incident.setAssignedAt(Instant.now());
+    incident.setStatus("Acknowledged");
+    incidents.save(incident);
+    activity.log(user.id(), "INCIDENT_CLAIMED", "Incident", incident.getId(), "Incident claimed: " + incident.getTitle());
+    cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
+    return Map.of("item", withScore(incident));
+  }
+
+  @PostMapping("/incidents/{id}/review-severity")
+  Map<String, Object> reviewSeverity(@AuthenticationPrincipal UserPrincipal user, @PathVariable String id, @RequestBody SeverityReviewRequest request) {
+    roles.requireResponder(user);
+    validateSeverity(request.severity());
+    Incident incident = incidents.findById(id).orElseThrow(() -> new IllegalArgumentException("Incident not found"));
+    int slaMinutes = slaPolicies.thresholdMinutesFor(request.severity());
+    incident.setSeverity(request.severity());
+    incident.setSeverityReviewStatus("Approved");
+    incident.setSeverityReviewReason(defaultValue(request.note(), "Severity manually reviewed."));
+    incident.setSlaHours(Math.max(1, (int) Math.ceil(slaMinutes / 60.0)));
+    incident.setDueAt(Instant.now().plus(Duration.ofMinutes(slaMinutes)));
+    incidents.save(incident);
+    activity.log(user.id(), "SEVERITY_REVIEWED", "Incident", incident.getId(), "Severity approved as " + request.severity());
+    cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
+    return Map.of("item", withScore(incident));
+  }
+
+  @PostMapping("/incidents/{id}/resolve")
+  Map<String, Object> resolve(@AuthenticationPrincipal UserPrincipal user, @PathVariable String id) {
+    roles.requireResponder(user);
+    Incident incident = incidents.findById(id).orElseThrow(() -> new IllegalArgumentException("Incident not found"));
+    if (!"Admin".equals(user.role()) && (incident.getAssignee() == null || !incident.getAssignee().equals(user.id()))) {
+      throw new IllegalArgumentException("Only the assigned responder or an admin can resolve this incident");
+    }
+    incident.setStatus("Resolved");
+    incident.setResolvedAt(Instant.now());
+    incidents.save(incident);
+    activity.log(user.id(), "INCIDENT_RESOLVED", "Incident", incident.getId(), "Incident resolved: " + incident.getTitle());
+    cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
+    return Map.of("item", withScore(incident));
+  }
+
   @PostMapping("/ai/incident-summary")
   Map<String, Object> aiSummary(@RequestBody Map<String, Object> body) {
     Object incidentId = body.get("incidentId");
@@ -163,6 +236,7 @@ public class IncidentController {
     }
     if (incident == null) throw new IllegalArgumentException("Incident missing");
     Map<String, Object> response = new LinkedHashMap<>(priority.summarize(incident));
+    response.put("plan", gemini.troubleshootingPlan(incident.getTitle(), incident.getDescription()));
     response.put("score", priority.score(incident));
     return response;
   }
@@ -173,6 +247,10 @@ public class IncidentController {
     map.put("title", incident.getTitle());
     map.put("description", incident.getDescription());
     map.put("severity", incident.getSeverity());
+    map.put("reportedSeverity", incident.getReportedSeverity());
+    map.put("geminiSeverity", incident.getGeminiSeverity());
+    map.put("severityReviewStatus", incident.getSeverityReviewStatus());
+    map.put("severityReviewReason", incident.getSeverityReviewReason());
     map.put("status", incident.getStatus());
     map.put("owner", incident.getOwner());
     map.put("assignee", incident.getAssignee());
@@ -181,6 +259,10 @@ public class IncidentController {
     map.put("dueAt", incident.getDueAt());
     map.put("slaOverdue", incident.isSlaOverdue());
     map.put("slaOverdueAt", incident.getSlaOverdueAt());
+    map.put("slaNearAlerted", incident.isSlaNearAlerted());
+    map.put("unassignedAlerted", incident.isUnassignedAlerted());
+    map.put("assignedAt", incident.getAssignedAt());
+    map.put("resolvedAt", incident.getResolvedAt());
     map.put("createdAt", incident.getCreatedAt());
     map.put("updatedAt", incident.getUpdatedAt());
     map.put("score", priority.score(incident));
@@ -212,7 +294,7 @@ public class IncidentController {
   }
 
   private static void validateIncidentStatus(String status) {
-    if (status != null && !status.matches("Open|Investigating|Mitigated|Resolved")) throw new IllegalArgumentException("Invalid status");
+    if (status != null && !status.matches("Open|Acknowledged|In Progress|Investigating|Mitigated|Resolved")) throw new IllegalArgumentException("Invalid status");
   }
 
   record IncidentCreateRequest(
@@ -224,4 +306,5 @@ public class IncidentController {
   ) {}
 
   record IncidentUpdateRequest(String status, String assignee, String severity, String description, List<String> tags) {}
+  record SeverityReviewRequest(@NotBlank String severity, String note) {}
 }

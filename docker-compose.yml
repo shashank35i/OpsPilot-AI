@@ -51,6 +51,10 @@ services:
       SLA_OVERDUE_SCHEDULER_ENABLED: "true"
       SLA_OVERDUE_SCHEDULER_DELAY_MS: "60000"
       SLA_OVERDUE_BATCH_SIZE: "100"
+      SLA_NEAR_THRESHOLD_PERCENT: "80"
+      UNASSIGNED_ALERT_MINUTES: "15"
+      GEMINI_API_KEY: ""
+      GEMINI_MODEL: gemini-1.5-flash
     ports:
       - "8080:8080"
     depends_on:

@@ -16,7 +16,7 @@ public class User extends BaseEntity {
   private String email;
   @Column(nullable = false)
   private String passwordHash;
-  private String role = "Agent";
+  private String role = "Reporter";
 
   @JsonProperty("_id")
   public String getJsonId() { return id; }

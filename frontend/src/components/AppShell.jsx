@@ -1,4 +1,5 @@
 import React from "react";
+import { Client } from "@stomp/stompjs";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   HomeIcon,
@@ -10,9 +11,11 @@ import {
   SunIcon,
   SparklesIcon,
   SearchIcon,
+  BellIcon,
 } from "lucide-react";
 import { getTheme, setTheme } from "../lib/theme";
 import { BrandMark } from "./BrandMark";
+import { API_BASE } from "../lib/api";
 
 const navItems = [
   { to: "/app", label: "Home", Icon: HomeIcon },
@@ -27,6 +30,8 @@ export const AppShell = () => {
   const location = useLocation();
   const [theme, setThemeState] = React.useState(getTheme());
   const [search, setSearch] = React.useState("");
+  const [alerts, setAlerts] = React.useState([]);
+  const [showAlerts, setShowAlerts] = React.useState(false);
   const user = React.useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "{}");
@@ -45,6 +50,31 @@ export const AppShell = () => {
     const params = new URLSearchParams(location.search);
     setSearch(params.get("q") || "");
   }, [location.search]);
+
+  React.useEffect(() => {
+    if (!user?.role) return undefined;
+    const wsUrl = (import.meta.env.VITE_WS_URL || `${API_BASE}/ws`).replace(/^http/, "ws");
+    const client = new Client({
+      brokerURL: wsUrl,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        const addAlert = (message) => {
+          try {
+            const payload = JSON.parse(message.body);
+            setAlerts((prev) => [payload, ...prev].slice(0, 8));
+          } catch {
+            // Ignore malformed alert payloads.
+          }
+        };
+
+        if (user.id) client.subscribe(`/queue/users/${user.id}/alerts`, addAlert);
+        if (user.role === "Responder" || user.role === "Admin") client.subscribe("/topic/responders/alerts", addAlert);
+        if (user.role === "Admin") client.subscribe("/topic/admin/alerts", addAlert);
+      },
+    });
+    client.activate();
+    return () => client.deactivate();
+  }, [user?.id, user?.role]);
 
   const onSearchSubmit = (e) => {
     e.preventDefault();
@@ -97,7 +127,7 @@ export const AppShell = () => {
               </div>
             </div>
             <span className="pill hide-mobile">Production</span>
-            <span className="pill hide-mobile">{user?.role || "Agent"}</span>
+            <span className="pill hide-mobile">{user?.role || "Reporter"}</span>
           </div>
 
           <div className="right">
@@ -112,6 +142,26 @@ export const AppShell = () => {
                 <SearchIcon size={16} />
               </button>
             </form>
+            <div style={{ position: "relative" }}>
+              <button className="theme-btn" onClick={() => setShowAlerts((open) => !open)} aria-label="Alerts">
+                <BellIcon size={16} />
+                {alerts.length ? <span className="alert-dot" /> : null}
+              </button>
+              {showAlerts ? (
+                <div className="alert-tray">
+                  {alerts.length === 0 ? (
+                    <div className="muted">No live alerts</div>
+                  ) : (
+                    alerts.map((alert, index) => (
+                      <div className="alert-item" key={`${alert.type}-${alert.incidentId}-${index}`}>
+                        <strong>{alert.type}</strong>
+                        <span>{alert.message}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+            </div>
             <button className="theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
               {theme === "dark" ? <SunIcon size={16} /> : <MoonIcon size={16} />}
             </button>

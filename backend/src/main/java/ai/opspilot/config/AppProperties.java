@@ -14,6 +14,10 @@ public class AppProperties {
   private boolean slaOverdueSchedulerEnabled = true;
   private long slaOverdueSchedulerDelayMs = 60_000;
   private int slaOverdueBatchSize = 100;
+  private int slaNearThresholdPercent = 80;
+  private int unassignedAlertMinutes = 15;
+  private String geminiApiKey = "";
+  private String geminiModel = "gemini-1.5-flash";
 
   public List<String> allowedOrigins() {
     return clientOrigin == null || clientOrigin.isBlank()
@@ -45,4 +49,12 @@ public class AppProperties {
   public void setSlaOverdueSchedulerDelayMs(long slaOverdueSchedulerDelayMs) { this.slaOverdueSchedulerDelayMs = slaOverdueSchedulerDelayMs; }
   public int getSlaOverdueBatchSize() { return slaOverdueBatchSize; }
   public void setSlaOverdueBatchSize(int slaOverdueBatchSize) { this.slaOverdueBatchSize = slaOverdueBatchSize; }
+  public int getSlaNearThresholdPercent() { return slaNearThresholdPercent; }
+  public void setSlaNearThresholdPercent(int slaNearThresholdPercent) { this.slaNearThresholdPercent = slaNearThresholdPercent; }
+  public int getUnassignedAlertMinutes() { return unassignedAlertMinutes; }
+  public void setUnassignedAlertMinutes(int unassignedAlertMinutes) { this.unassignedAlertMinutes = unassignedAlertMinutes; }
+  public String getGeminiApiKey() { return geminiApiKey; }
+  public void setGeminiApiKey(String geminiApiKey) { this.geminiApiKey = geminiApiKey; }
+  public String getGeminiModel() { return geminiModel; }
+  public void setGeminiModel(String geminiModel) { this.geminiModel = geminiModel; }
 }

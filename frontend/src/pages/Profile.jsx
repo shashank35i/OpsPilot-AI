@@ -28,7 +28,7 @@ export const Profile = () => {
         <article className="card">
           <div className="section-title">Account</div>
           <h2 style={{ marginTop: 8 }}>{user.name || "User"}</h2>
-          <div className="muted">{user.role || "Agent"}</div>
+          <div className="muted">{user.role || "Reporter"}</div>
           <div className="list-lines" style={{ marginTop: 18 }}>
             <div><span>Contact</span><strong>{user.email || "-"}</strong></div>
             <div><span>Workspace</span><strong>Production</strong></div>

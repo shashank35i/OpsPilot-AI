@@ -30,6 +30,7 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 - [API Overview](#api-overview)
 - [Testing](#testing)
 - [Deployment](#deployment)
+- [System Flow](#system-flow)
 - [Troubleshooting](#troubleshooting)
 - [Developer](#developer)
 - [License](#license)
@@ -52,15 +53,17 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 ---
 
 ## Core Features
-- Hybrid JWT + server-side session authentication with token blacklist revocation
-- Role-based access metadata (`Admin`, `Manager`, `Agent`)
+- Hybrid JWT + server-side session authentication with Redis token blacklist revocation
+- Role-based access controls for `Reporter`, `Responder`, and `Admin`
 - Incident queue with SLA bars, status badges, severity, and score
-- Scheduled SLA overdue detection for unresolved incidents past due time
+- Gemini severity validation with manual review routing for mismatches
+- Scheduled SLA, near-deadline, and unassigned incident monitoring with WebSocket/STOMP alerts
 - Incident actions: status transitions, AI brief, and auto task generation
 - Task board with in-place status/priority updates
 - Analytics summary (open/investigating/mitigated/resolved + tasks open)
 - Activity feed for operational audit trail
 - Redis-backed caching for hot read endpoints
+- Cache read-reduction metrics exposed on the dashboard
 - Mobile-first responsive UI with desktop fixed sidebar
 
 ---
@@ -81,8 +84,11 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 - Spring Data JPA
 - MySQL
 - Spring Data Redis
+- WebSocket/STOMP
 - Bean Validation
-- Hybrid JWT + session auth with blacklisted-token revocation
+- Gemini API integration
+- JUnit + Mockito
+- Hybrid JWT + session auth with Redis blacklisted-token revocation
 
 ### Tooling
 - Docker / Docker Compose
@@ -96,7 +102,7 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 Browser (React/Vite UI)
         |
         v
-Spring Boot API (JWT + sessions + blacklist + AI helpers)
+Spring Boot API (JWT + sessions + Redis blacklist + Gemini + STOMP)
         |                 \
         v                  v
    MySQL (source)      Redis (cache)
@@ -153,8 +159,8 @@ npm run dev
 (when `SEED_ON_START=1`)
 
 - Admin: `admin@opspilot.ai` / `Admin@123`
-- Manager: `manager@opspilot.ai` / `Manager@123`
-- Agent: `agent@opspilot.ai` / `Agent@123`
+- Responder: `responder@opspilot.ai` / `Responder@123`
+- Reporter: `reporter@opspilot.ai` / `Reporter@123`
 
 ---
 
@@ -175,6 +181,10 @@ npm run dev
 | `SLA_OVERDUE_SCHEDULER_ENABLED` | Optional | `true` |
 | `SLA_OVERDUE_SCHEDULER_DELAY_MS` | Optional | `60000` |
 | `SLA_OVERDUE_BATCH_SIZE` | Optional | `100` |
+| `SLA_NEAR_THRESHOLD_PERCENT` | Optional | `80` |
+| `UNASSIGNED_ALERT_MINUTES` | Optional | `15` |
+| `GEMINI_API_KEY` | Optional | `your_key` |
+| `GEMINI_MODEL` | Optional | `gemini-1.5-flash` |
 
 ### Frontend (`frontend/.env`)
 | Variable | Required | Example |
@@ -195,8 +205,15 @@ npm run dev
 - `GET /api/incidents`
 - `POST /api/incidents`
 - `PATCH /api/incidents/:id`
+- `POST /api/incidents/:id/claim`
+- `POST /api/incidents/:id/review-severity`
+- `POST /api/incidents/:id/resolve`
 - `POST /api/incidents/:id/auto-tasks`
 - `POST /api/ai/incident-summary`
+
+### Admin
+- `GET /api/admin/sla-policies`
+- `PUT /api/admin/sla-policies`
 
 ### Tasks
 - `GET /api/tasks`
@@ -205,9 +222,17 @@ npm run dev
 
 ### Analytics / Metadata
 - `GET /api/analytics/summary`
+- `GET /api/analytics/cache-metrics`
 - `GET /api/models/priority`
 - `GET /api/activities`
 - `GET /api/health`
+
+### Realtime Alerts
+- STOMP endpoint: `/ws`
+- Responder broadcast topic: `/topic/responders/alerts`
+- Admin broadcast topic: `/topic/admin/alerts`
+- Assigned responder queue: `/queue/users/{userId}/alerts`
+- Frontend users see recent live alerts in the header alert tray.
 
 ---
 
@@ -230,6 +255,26 @@ npm run test:e2e
 3. Deploy backend service from `/backend`
 4. Set backend env vars (`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `CLIENT_ORIGIN`, optional `REDIS_URL`, `JWT_TTL_HOURS`)
 5. Deploy frontend service from `/frontend` (or Cloudflare Pages)
+
+### AWS
+- Backend: Dockerized Spring Boot service on EC2
+- Database: Amazon RDS MySQL
+- Frontend assets: S3
+- CDN: CloudFront
+- Cache / token blacklist: Redis-compatible cache endpoint
+
+---
+
+## System Flow
+1. Users authenticate with JWT. Logout writes the JWT ID to Redis blacklist storage, so revoked tokens are rejected immediately.
+2. Roles enforce the core workflow: `Reporter` creates incidents, `Responder` claims/reviews/resolves, and `Admin` can perform responder actions plus manage SLA policies.
+3. Reporter submits title, description, and severity.
+4. Gemini evaluates the description and compares predicted severity with the reporter selection. Matching reports are auto-approved; mismatches become `NeedsReview`.
+5. Once severity is locked, the incident inherits the Admin-managed SLA policy for that severity.
+6. Responders claim unassigned incidents and move work through `Acknowledged`, `In Progress`, and `Resolved`.
+7. Scheduled monitoring checks near-SLA, breached-SLA, and stale-unassigned incidents.
+8. Alerts are sent over WebSocket/STOMP to responders or admins and are also recorded in the activity feed.
+9. Redis cache-aside storage is used for hot dashboard reads and JWT blacklist checks. Cache hit-rate metrics are exposed as estimated database read reduction.
 
 ---
 

@@ -1,11 +1,10 @@
 package ai.opspilot.security;
 
 import ai.opspilot.model.AuthSession;
-import ai.opspilot.model.BlacklistedToken;
 import ai.opspilot.model.User;
 import ai.opspilot.repo.AuthSessionRepository;
-import ai.opspilot.repo.BlacklistedTokenRepository;
 import ai.opspilot.repo.UserRepository;
+import ai.opspilot.service.TokenBlacklistService;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -17,20 +16,20 @@ import org.springframework.stereotype.Service;
 public class AuthService {
   private final UserRepository users;
   private final AuthSessionRepository sessions;
-  private final BlacklistedTokenRepository blacklist;
+  private final TokenBlacklistService tokenBlacklist;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
 
   public AuthService(
       UserRepository users,
       AuthSessionRepository sessions,
-      BlacklistedTokenRepository blacklist,
+      TokenBlacklistService tokenBlacklist,
       PasswordEncoder passwordEncoder,
       JwtService jwtService
   ) {
     this.users = users;
     this.sessions = sessions;
-    this.blacklist = blacklist;
+    this.tokenBlacklist = tokenBlacklist;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
   }
@@ -44,7 +43,7 @@ public class AuthService {
     user.setName(name.trim());
     user.setEmail(normalized);
     user.setPasswordHash(passwordEncoder.encode(password));
-    user.setRole(role == null || role.isBlank() ? "Agent" : role);
+    user.setRole(role == null || role.isBlank() ? "Reporter" : role);
     users.save(user);
     return issue(user);
   }
@@ -61,7 +60,7 @@ public class AuthService {
   public Optional<UserPrincipal> authenticate(String token) {
     JwtClaims claims = jwtService.parse(token);
     Instant now = Instant.now();
-    if (claims.expiresAt().isBefore(now) || blacklist.existsById(claims.tokenId())) {
+    if (claims.expiresAt().isBefore(now) || tokenBlacklist.isBlacklisted(claims.tokenId())) {
       return Optional.empty();
     }
     AuthSession session = sessions.findById(claims.sessionId()).orElse(null);
@@ -86,13 +85,7 @@ public class AuthService {
       session.setRevokedAt(now);
       sessions.save(session);
 
-      BlacklistedToken token = new BlacklistedToken();
-      token.setTokenId(principal.tokenId());
-      token.setSessionId(principal.sessionId());
-      token.setUserId(principal.id());
-      token.setReason("logout");
-      token.setExpiresAt(session.getExpiresAt());
-      blacklist.save(token);
+      tokenBlacklist.blacklist(principal.tokenId(), principal.sessionId(), principal.id(), session.getExpiresAt(), "logout");
     });
   }
 

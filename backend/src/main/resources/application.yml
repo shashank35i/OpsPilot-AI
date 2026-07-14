@@ -36,3 +36,7 @@ opspilot:
   sla-overdue-scheduler-enabled: ${SLA_OVERDUE_SCHEDULER_ENABLED:true}
   sla-overdue-scheduler-delay-ms: ${SLA_OVERDUE_SCHEDULER_DELAY_MS:60000}
   sla-overdue-batch-size: ${SLA_OVERDUE_BATCH_SIZE:100}
+  sla-near-threshold-percent: ${SLA_NEAR_THRESHOLD_PERCENT:80}
+  unassigned-alert-minutes: ${UNASSIGNED_ALERT_MINUTES:15}
+  gemini-api-key: ${GEMINI_API_KEY:}
+  gemini-model: ${GEMINI_MODEL:gemini-1.5-flash}

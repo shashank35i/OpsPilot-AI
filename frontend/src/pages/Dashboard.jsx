@@ -7,6 +7,7 @@ export const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [activities, setActivities] = useState([]);
   const [health, setHealth] = useState(null);
+  const [cacheMetrics, setCacheMetrics] = useState(null);
   const releaseTag = import.meta.env.VITE_APP_RELEASE || "prod";
 
   useEffect(() => {
@@ -33,6 +34,10 @@ export const Dashboard = () => {
         writeCache("dashboard:activities", d, 15_000);
       })
       .catch(() => setActivities([]));
+
+    api("/api/analytics/cache-metrics")
+      .then((d) => setCacheMetrics(d))
+      .catch(() => setCacheMetrics(null));
 
     fetch(`${API_BASE}/api/health`)
       .then((res) => res.json())
@@ -118,6 +123,10 @@ export const Dashboard = () => {
             <div className="metric-row">
               <div className="muted">Escalations this week</div>
               <strong>4</strong>
+            </div>
+            <div className="metric-row">
+              <div className="muted">Redis cache read reduction</div>
+              <strong>{cacheMetrics ? `${cacheMetrics.estimatedDatabaseReadReductionPercent}%` : "--"}</strong>
             </div>
             <div className="metric-row">
               <div className="muted">Backend status</div>

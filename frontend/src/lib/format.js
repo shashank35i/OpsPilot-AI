@@ -1,5 +1,7 @@
 const incidentBadges = {
   Open: { label: "Open", tone: "danger" },
+  Acknowledged: { label: "Acknowledged", tone: "warning" },
+  "In Progress": { label: "In Progress", tone: "warning" },
   Investigating: { label: "Investigating", tone: "warning" },
   Mitigated: { label: "Mitigated", tone: "success" },
   Resolved: { label: "Resolved", tone: "neutral" },

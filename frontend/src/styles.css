@@ -633,6 +633,52 @@ html[data-theme="light"] .card {
   border-color: color-mix(in oklab, var(--accent) 40%, transparent);
 }
 
+.alert-dot {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.alert-tray {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 40;
+  width: min(340px, calc(100vw - 32px));
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.alert-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--surface-2) 78%, transparent);
+}
+
+.alert-item strong {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.alert-item span {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .theme-btn:focus-visible,
 .btn:focus-visible,
 .input:focus-visible {

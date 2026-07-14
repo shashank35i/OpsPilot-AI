@@ -46,4 +46,9 @@ public class AnalyticsController {
   Map<String, Object> priorityModel() {
     return Map.of("model", priority.model());
   }
+
+  @GetMapping("/analytics/cache-metrics")
+  Map<String, Object> cacheMetrics() {
+    return cache.metrics();
+  }
 }

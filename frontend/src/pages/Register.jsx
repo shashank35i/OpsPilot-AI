@@ -19,7 +19,7 @@ export const Register = () => {
     try {
       const res = await api("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, password, role: "Manager" }),
+        body: JSON.stringify({ name, email, password, role: "Reporter" }),
       });
       localStorage.setItem("token", res.token);
       localStorage.setItem("user", JSON.stringify(res.user));
