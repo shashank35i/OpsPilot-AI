@@ -59,6 +59,7 @@ public class SeedService implements ApplicationRunner {
         "Payment gateway latency spike",
         "Increased latency on checkout payments in US-East.",
         "High",
+        "Payments",
         "Investigating",
         reporter.getId(),
         responder.getId(),
@@ -69,6 +70,7 @@ public class SeedService implements ApplicationRunner {
         "Mobile app crash on login",
         "Crash reports from iOS 17 users.",
         "Critical",
+        "Mobile",
         "Open",
         reporter.getId(),
         responder.getId(),
@@ -79,6 +81,7 @@ public class SeedService implements ApplicationRunner {
         "Inventory sync delayed",
         "Warehouse sync running 30 mins behind.",
         "Medium",
+        "Inventory",
         "Mitigated",
         reporter.getId(),
         responder.getId(),
@@ -110,11 +113,12 @@ public class SeedService implements ApplicationRunner {
     return user;
   }
 
-  private Incident incident(String title, String description, String severity, String status, String owner, String assignee, int slaHours, List<String> tags) {
+  private Incident incident(String title, String description, String severity, String category, String status, String owner, String assignee, int slaHours, List<String> tags) {
     Incident incident = new Incident();
     incident.setTitle(title);
     incident.setDescription(description);
     incident.setSeverity(severity);
+    incident.setCategory(category);
     incident.setStatus(status);
     incident.setOwner(owner);
     incident.setAssignee(assignee);

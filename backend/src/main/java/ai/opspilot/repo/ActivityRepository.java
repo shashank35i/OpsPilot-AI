@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ActivityRepository extends JpaRepository<Activity, String> {
   List<Activity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+  List<Activity> findByEntityTypeAndEntityIdInOrderByCreatedAtDesc(String entityType, List<String> entityIds, Pageable pageable);
 }

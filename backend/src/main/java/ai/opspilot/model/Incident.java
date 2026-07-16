@@ -16,6 +16,8 @@ import java.util.List;
     @Index(name = "idx_incidents_sla_due", columnList = "sla_overdue, due_at, status"),
     @Index(name = "idx_incidents_due", columnList = "due_at"),
     @Index(name = "idx_incidents_assignee_created", columnList = "assignee, created_at"),
+    @Index(name = "idx_incidents_owner_created", columnList = "owner, created_at"),
+    @Index(name = "idx_incidents_category", columnList = "category"),
     @Index(name = "idx_incidents_review", columnList = "severity_review_status")
 })
 public class Incident extends BaseEntity {
@@ -24,6 +26,7 @@ public class Incident extends BaseEntity {
   @Column(columnDefinition = "TEXT")
   private String description = "";
   private String severity = "Medium";
+  private String category = "Operations";
   @Column(name = "reported_severity")
   private String reportedSeverity = "Medium";
   @Column(name = "gemini_severity")
@@ -66,6 +69,8 @@ public class Incident extends BaseEntity {
   public void setDescription(String description) { this.description = description; }
   public String getSeverity() { return severity; }
   public void setSeverity(String severity) { this.severity = severity; }
+  public String getCategory() { return category; }
+  public void setCategory(String category) { this.category = category == null || category.isBlank() ? "Operations" : category; }
   public String getReportedSeverity() { return reportedSeverity; }
   public void setReportedSeverity(String reportedSeverity) { this.reportedSeverity = reportedSeverity; }
   public String getGeminiSeverity() { return geminiSeverity; }

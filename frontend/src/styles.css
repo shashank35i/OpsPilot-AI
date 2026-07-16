@@ -769,6 +769,12 @@ html[data-theme="light"] .card {
   font-family: "Sora", system-ui, sans-serif;
 }
 
+.kpi-card .muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .timeline-list {
   margin-top: 12px;
   display: grid;
@@ -808,6 +814,61 @@ html[data-theme="light"] .card {
 .metric-row strong {
   font-family: "Sora", system-ui, sans-serif;
   font-size: 20px;
+}
+
+.compact-stack .metric-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.dashboard-page {
+  gap: 14px;
+}
+
+.dashboard-hero {
+  align-items: center;
+}
+
+.dashboard-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--surface-2) 76%, transparent);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.row-title {
+  font-weight: 700;
+}
+
+.row-meta {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.trend-strip {
+  height: 96px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  background: color-mix(in oklab, var(--surface-2) 76%, transparent);
+}
+
+.trend-strip span {
+  flex: 1;
+  min-width: 8px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(180deg, var(--accent), var(--brand));
 }
 
 .toolbar-shell {
@@ -1693,7 +1754,7 @@ html[data-theme="light"] .auth-aside {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   }
   .toolbar-controls {
-    grid-template-columns: minmax(160px, 200px) minmax(240px, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(160px, 220px)) minmax(240px, 1fr) minmax(240px, 1fr) auto;
   }
   .grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1703,6 +1764,10 @@ html[data-theme="light"] .auth-aside {
   }
   .hero-panel {
     grid-template-columns: 1.1fr 1fr;
+  }
+  .dashboard-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
   }
   .premium-hero {
     grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);

@@ -11,6 +11,7 @@ export const Incidents = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("Medium");
+  const [category, setCategory] = useState("Operations");
   const [reviewSeverityById, setReviewSeverityById] = useState({});
   const [statusFilter, setStatusFilter] = useState("");
   const [busyId, setBusyId] = useState("");
@@ -39,7 +40,7 @@ export const Incidents = () => {
     const q = searchParams.get("q") || "";
     if (q) params.set("q", q);
     const query = params.toString() ? `?${params.toString()}` : "";
-    const cacheKey = `incidents:list:${params.toString() || "all"}`;
+    const cacheKey = `incidents:list:${user.role || "Reporter"}:${user.id || "me"}:${params.toString() || "all"}`;
 
     const cached = readCache(cacheKey);
     if (cached?.items) {
@@ -72,12 +73,13 @@ export const Incidents = () => {
     try {
       await api("/api/incidents", {
         method: "POST",
-        body: JSON.stringify({ title: nextTitle, description, severity }),
+        body: JSON.stringify({ title: nextTitle, description, severity, category }),
       });
       clearIncidentCaches();
       setTitle("");
       setDescription("");
       setSeverity("Medium");
+      setCategory("Operations");
       await load();
       setInfo("Incident created successfully.");
     } catch (err) {
@@ -196,6 +198,7 @@ export const Incidents = () => {
             <option value="Investigating">Investigating</option>
             <option value="Mitigated">Mitigated</option>
             <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
           </select>
           {canCreate ? (
             <>
@@ -204,6 +207,14 @@ export const Incidents = () => {
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
                 <option value="Critical">Critical</option>
+              </select>
+              <select className="input compact" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="Operations">Operations</option>
+                <option value="Payments">Payments</option>
+                <option value="Mobile">Mobile</option>
+                <option value="Inventory">Inventory</option>
+                <option value="Security">Security</option>
+                <option value="Infrastructure">Infrastructure</option>
               </select>
               <input
                 className="input"
@@ -268,6 +279,7 @@ export const Incidents = () => {
                           {i.assignee ? "Assigned" : "Unassigned"}
                           {i.severityReviewStatus === "NeedsReview" ? " · Severity review required" : ""}
                         </div>
+                        <div className="muted" style={{ fontSize: 12 }}>Category: {i.category || "Operations"}</div>
                         {i.description ? <div className="muted" style={{ fontSize: 12 }}>{i.description}</div> : null}
                       </td>
                       <td><span className={`status-badge tone-${badge.tone}`}>{badge.label}</span></td>
@@ -313,6 +325,7 @@ export const Incidents = () => {
                                 <option value="Investigating">Investigating</option>
                                 <option value="Mitigated">Mitigated</option>
                                 <option value="Resolved">Resolved</option>
+                                <option value="Closed">Closed</option>
                               </select>
                               {!i.assignee ? (
                                 <button className="btn primary" disabled={busyId === i._id} onClick={() => claimIncident(i._id)}>

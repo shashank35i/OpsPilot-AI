@@ -5,6 +5,7 @@ const incidentBadges = {
   Investigating: { label: "Investigating", tone: "warning" },
   Mitigated: { label: "Mitigated", tone: "success" },
   Resolved: { label: "Resolved", tone: "neutral" },
+  Closed: { label: "Closed", tone: "neutral" },
 };
 
 const taskBadges = {

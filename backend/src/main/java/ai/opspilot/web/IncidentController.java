@@ -7,6 +7,7 @@ import ai.opspilot.repo.TaskRepository;
 import ai.opspilot.security.RoleGuard;
 import ai.opspilot.security.UserPrincipal;
 import ai.opspilot.service.ActivityService;
+import ai.opspilot.service.AlertService;
 import ai.opspilot.service.CacheService;
 import ai.opspilot.service.GeminiService;
 import ai.opspilot.service.PriorityService;
@@ -45,6 +46,7 @@ public class IncidentController {
   private final RoleGuard roles;
   private final GeminiService gemini;
   private final SlaPolicyService slaPolicies;
+  private final AlertService alerts;
 
   public IncidentController(
       IncidentRepository incidents,
@@ -54,7 +56,8 @@ public class IncidentController {
       CacheService cache,
       RoleGuard roles,
       GeminiService gemini,
-      SlaPolicyService slaPolicies
+      SlaPolicyService slaPolicies,
+      AlertService alerts
   ) {
     this.incidents = incidents;
     this.tasks = tasks;
@@ -64,32 +67,38 @@ public class IncidentController {
     this.roles = roles;
     this.gemini = gemini;
     this.slaPolicies = slaPolicies;
+    this.alerts = alerts;
   }
 
   @GetMapping("/incidents")
-  Map<String, Object> list(@RequestParam(defaultValue = "") String status, @RequestParam(defaultValue = "") String q) {
+  Map<String, Object> list(@AuthenticationPrincipal UserPrincipal user, @RequestParam(defaultValue = "") String status, @RequestParam(defaultValue = "") String q) {
     String cleanStatus = status.trim();
     String cleanQ = q.trim();
-    String cacheKey = "incidents:" + (cleanStatus.isBlank() ? "all" : cleanStatus);
-    if (cleanQ.isBlank()) {
-      var cached = cache.get(cacheKey, Map.class);
-      if (cached.isPresent()) return cached.get();
-    }
-
     PageRequest page = PageRequest.of(0, 200);
     List<Incident> found;
-    if (!cleanStatus.isBlank() && !cleanQ.isBlank()) {
-      found = incidents.findByStatusAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(cleanStatus, cleanQ, page);
-    } else if (!cleanStatus.isBlank()) {
-      found = incidents.findByStatusOrderByCreatedAtDesc(cleanStatus, page);
-    } else if (!cleanQ.isBlank()) {
-      found = incidents.findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(cleanQ, page);
+    if ("Reporter".equals(user.role())) {
+      if (!cleanStatus.isBlank() && !cleanQ.isBlank()) {
+        found = incidents.findByOwnerAndStatusAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(user.id(), cleanStatus, cleanQ, page);
+      } else if (!cleanStatus.isBlank()) {
+        found = incidents.findByOwnerAndStatusOrderByCreatedAtDesc(user.id(), cleanStatus, page);
+      } else if (!cleanQ.isBlank()) {
+        found = incidents.findByOwnerAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(user.id(), cleanQ, page);
+      } else {
+        found = incidents.findByOwnerOrderByCreatedAtDesc(user.id(), page);
+      }
     } else {
-      found = incidents.findAllByOrderByCreatedAtDesc(page);
+      if (!cleanStatus.isBlank() && !cleanQ.isBlank()) {
+        found = incidents.findByStatusAndTitleContainingIgnoreCaseOrderByCreatedAtDesc(cleanStatus, cleanQ, page);
+      } else if (!cleanStatus.isBlank()) {
+        found = incidents.findByStatusOrderByCreatedAtDesc(cleanStatus, page);
+      } else if (!cleanQ.isBlank()) {
+        found = incidents.findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(cleanQ, page);
+      } else {
+        found = incidents.findAllByOrderByCreatedAtDesc(page);
+      }
     }
 
     Map<String, Object> payload = Map.of("items", found.stream().map(this::withScore).toList());
-    if (cleanQ.isBlank()) cache.set(cacheKey, payload, Duration.ofSeconds(20));
     return payload;
   }
 
@@ -105,6 +114,7 @@ public class IncidentController {
     Incident incident = new Incident();
     incident.setTitle(request.title().trim());
     incident.setDescription(request.description() == null ? "" : request.description());
+    incident.setCategory(defaultValue(request.category(), "Operations"));
     incident.setReportedSeverity(reportedSeverity);
     incident.setGeminiSeverity(assessment.predictedSeverity());
     incident.setSeverity(lockedSeverity);
@@ -133,10 +143,17 @@ public class IncidentController {
     if (request.status() != null) { incident.setStatus(request.status()); metadata.put("status", request.status()); }
     if (request.assignee() != null) { incident.setAssignee(request.assignee()); incident.setAssignedAt(Instant.now()); metadata.put("assignee", request.assignee()); }
     if (request.severity() != null) { incident.setSeverity(request.severity()); metadata.put("severity", request.severity()); }
+    if (request.category() != null) { incident.setCategory(request.category()); metadata.put("category", request.category()); }
     if (request.description() != null) { incident.setDescription(request.description()); metadata.put("description", request.description()); }
     if (request.tags() != null) { incident.setTags(request.tags()); metadata.put("tags", request.tags()); }
     incidents.save(incident);
     activity.log(user.id(), "INCIDENT_UPDATED", "Incident", incident.getId(), "Incident updated: " + incident.getTitle(), metadata);
+    if (!metadata.isEmpty() && incident.getOwner() != null && !incident.getOwner().equals(user.id())) {
+      String message = request.status() != null
+          ? "Status changed to " + request.status() + ": " + incident.getTitle()
+          : "Incident updated: " + incident.getTitle();
+      alerts.reporterAlert(incident.getOwner(), "INCIDENT_UPDATED", incident, message);
+    }
     cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
     return Map.of("item", incident);
   }
@@ -182,6 +199,7 @@ public class IncidentController {
     incident.setStatus("Acknowledged");
     incidents.save(incident);
     activity.log(user.id(), "INCIDENT_CLAIMED", "Incident", incident.getId(), "Incident claimed: " + incident.getTitle());
+    alerts.reporterAlert(incident.getOwner(), "INCIDENT_ASSIGNED", incident, "Responder assigned to: " + incident.getTitle());
     cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
     return Map.of("item", withScore(incident));
   }
@@ -199,6 +217,7 @@ public class IncidentController {
     incident.setDueAt(Instant.now().plus(Duration.ofMinutes(slaMinutes)));
     incidents.save(incident);
     activity.log(user.id(), "SEVERITY_REVIEWED", "Incident", incident.getId(), "Severity approved as " + request.severity());
+    alerts.reporterAlert(incident.getOwner(), "SEVERITY_REVIEWED", incident, "Severity reviewed as " + request.severity() + ": " + incident.getTitle());
     cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
     return Map.of("item", withScore(incident));
   }
@@ -214,6 +233,7 @@ public class IncidentController {
     incident.setResolvedAt(Instant.now());
     incidents.save(incident);
     activity.log(user.id(), "INCIDENT_RESOLVED", "Incident", incident.getId(), "Incident resolved: " + incident.getTitle());
+    alerts.reporterAlert(incident.getOwner(), "INCIDENT_RESOLVED", incident, "Incident resolved: " + incident.getTitle());
     cache.delete(keys("analytics:summary", "activities:latest", INCIDENT_CACHE_KEYS));
     return Map.of("item", withScore(incident));
   }
@@ -247,6 +267,7 @@ public class IncidentController {
     map.put("title", incident.getTitle());
     map.put("description", incident.getDescription());
     map.put("severity", incident.getSeverity());
+    map.put("category", incident.getCategory());
     map.put("reportedSeverity", incident.getReportedSeverity());
     map.put("geminiSeverity", incident.getGeminiSeverity());
     map.put("severityReviewStatus", incident.getSeverityReviewStatus());
@@ -294,17 +315,18 @@ public class IncidentController {
   }
 
   private static void validateIncidentStatus(String status) {
-    if (status != null && !status.matches("Open|Acknowledged|In Progress|Investigating|Mitigated|Resolved")) throw new IllegalArgumentException("Invalid status");
+    if (status != null && !status.matches("Open|Acknowledged|In Progress|Investigating|Mitigated|Resolved|Closed")) throw new IllegalArgumentException("Invalid status");
   }
 
   record IncidentCreateRequest(
       @NotBlank @Size(min = 3) String title,
       String description,
       String severity,
+      String category,
       List<String> tags,
       Integer slaHours
   ) {}
 
-  record IncidentUpdateRequest(String status, String assignee, String severity, String description, List<String> tags) {}
+  record IncidentUpdateRequest(String status, String assignee, String severity, String category, String description, List<String> tags) {}
   record SeverityReviewRequest(@NotBlank String severity, String note) {}
 }

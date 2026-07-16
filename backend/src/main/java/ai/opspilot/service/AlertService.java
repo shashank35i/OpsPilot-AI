@@ -30,6 +30,13 @@ public class AlertService {
     activity.log(null, type, "Incident", incident.getId(), message);
   }
 
+  public void reporterAlert(String userId, String type, Incident incident, String message) {
+    if (userId == null || userId.isBlank()) return;
+    Map<String, Object> payload = payload(type, incident, message);
+    messaging.convertAndSend("/queue/users/" + userId + "/alerts", payload);
+    activity.log(null, type, "Incident", incident.getId(), message);
+  }
+
   private static Map<String, Object> payload(String type, Incident incident, String message) {
     return Map.of(
         "type", type,
