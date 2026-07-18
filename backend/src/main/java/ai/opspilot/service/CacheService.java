@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,18 @@ public class CacheService {
     if (redis.isEmpty() || keys == null || keys.isEmpty()) return;
     try {
       redis.get().delete(keys);
+    } catch (Exception ignored) {
+      // cache fallback
+    }
+  }
+
+  public void deleteByPrefix(String prefix) {
+    if (redis.isEmpty() || prefix == null || prefix.isBlank()) return;
+    try {
+      Set<String> keys = redis.get().keys(prefix + "*");
+      if (keys != null && !keys.isEmpty()) {
+        redis.get().delete(keys);
+      }
     } catch (Exception ignored) {
       // cache fallback
     }

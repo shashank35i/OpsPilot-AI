@@ -5,23 +5,17 @@ import ai.opspilot.model.Incident;
 import ai.opspilot.repo.IncidentRepository;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SlaOverdueScheduler {
-  private static final List<String> INCIDENT_CACHE_KEYS = List.of(
-      "incidents:all",
-      "incidents:Open",
-      "incidents:Investigating",
-      "incidents:Mitigated",
-      "incidents:Resolved",
-      "analytics:summary",
-      "activities:latest"
-  );
+  private static final List<String> SUMMARY_CACHE_KEYS = List.of("analytics:summary", "activities:latest");
 
   private final IncidentRepository incidents;
   private final ActivityService activity;
@@ -76,7 +70,7 @@ public class SlaOverdueScheduler {
       }
     }
     incidents.saveAll(changed);
-    cache.delete(INCIDENT_CACHE_KEYS);
+    invalidateDashboardCaches(changed);
   }
 
   private void flagNearSla(Instant now, int limit) {
@@ -92,7 +86,7 @@ public class SlaOverdueScheduler {
       }
     }
     incidents.saveAll(nearSla);
-    cache.delete(INCIDENT_CACHE_KEYS);
+    invalidateDashboardCaches(nearSla);
   }
 
   private void flagUnassigned(Instant now, int limit) {
@@ -104,6 +98,21 @@ public class SlaOverdueScheduler {
       alerts.adminAlert("UNASSIGNED_STALE", incident, "Incident has remained unassigned: " + incident.getTitle());
     }
     incidents.saveAll(unassigned);
-    cache.delete(INCIDENT_CACHE_KEYS);
+    invalidateDashboardCaches(unassigned);
+  }
+
+  private void invalidateDashboardCaches(List<Incident> changed) {
+    if (changed == null || changed.isEmpty()) return;
+    Set<String> keys = new LinkedHashSet<>(SUMMARY_CACHE_KEYS);
+    keys.add("dashboard:admin");
+    for (Incident incident : changed) {
+      if (incident.getOwner() != null && !incident.getOwner().isBlank()) {
+        keys.add("dashboard:reporter:" + incident.getOwner());
+      }
+      if (incident.getAssignee() != null && !incident.getAssignee().isBlank()) {
+        keys.add("dashboard:responder:" + incident.getAssignee());
+      }
+    }
+    cache.delete(keys);
   }
 }

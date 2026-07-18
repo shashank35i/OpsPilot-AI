@@ -7,7 +7,9 @@ import ai.opspilot.repo.ActivityRepository;
 import ai.opspilot.repo.IncidentRepository;
 import ai.opspilot.repo.UserRepository;
 import ai.opspilot.security.UserPrincipal;
+import ai.opspilot.service.CacheService;
 import ai.opspilot.service.PriorityService;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,25 +30,42 @@ public class DashboardController {
   private final ActivityRepository activities;
   private final UserRepository users;
   private final PriorityService priority;
+  private final CacheService cache;
 
   public DashboardController(
       IncidentRepository incidents,
       ActivityRepository activities,
       UserRepository users,
-      PriorityService priority
+      PriorityService priority,
+      CacheService cache
   ) {
     this.incidents = incidents;
     this.activities = activities;
     this.users = users;
     this.priority = priority;
+    this.cache = cache;
   }
 
   @GetMapping
   Map<String, Object> dashboard(@AuthenticationPrincipal UserPrincipal user) {
-    return switch (user.role()) {
+    String cacheKey = dashboardCacheKey(user);
+    var cached = cache.get(cacheKey, Map.class);
+    if (cached.isPresent()) return cached.get();
+
+    Map<String, Object> payload = switch (user.role()) {
       case "Admin" -> adminDashboard();
       case "Responder" -> responderDashboard(user.id());
       default -> reporterDashboard(user.id());
+    };
+    cache.set(cacheKey, payload, Duration.ofSeconds(30));
+    return payload;
+  }
+
+  private static String dashboardCacheKey(UserPrincipal user) {
+    return switch (user.role()) {
+      case "Admin" -> "dashboard:admin";
+      case "Responder" -> "dashboard:responder:" + user.id();
+      default -> "dashboard:reporter:" + user.id();
     };
   }
 

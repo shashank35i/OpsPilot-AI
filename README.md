@@ -63,7 +63,7 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 - Analytics summary (open/investigating/mitigated/resolved + tasks open)
 - Activity feed for operational audit trail
 - Redis-backed caching for hot read endpoints
-- Cache read-reduction metrics exposed on the dashboard
+- Cache read-reduction metrics exposed through the analytics metadata API
 - Mobile-first responsive UI with desktop fixed sidebar
 
 ---
@@ -202,6 +202,7 @@ npm run dev
 - `GET /api/auth/me`
 
 ### Incidents
+- `GET /api/dashboard`
 - `GET /api/incidents`
 - `POST /api/incidents`
 - `PATCH /api/incidents/:id`
@@ -274,7 +275,12 @@ npm run test:e2e
 6. Responders claim unassigned incidents and move work through `Acknowledged`, `In Progress`, and `Resolved`.
 7. Scheduled monitoring checks near-SLA, breached-SLA, and stale-unassigned incidents.
 8. Alerts are sent over WebSocket/STOMP to responders or admins and are also recorded in the activity feed.
-9. Redis cache-aside storage is used for hot dashboard reads and JWT blacklist checks. Cache hit-rate metrics are exposed as estimated database read reduction.
+9. Redis cache-aside storage is used for role-scoped dashboard reads and JWT blacklist checks. Cache hit-rate metrics are exposed as estimated database read reduction.
+
+## Frontend Pages
+- Public routes: landing, login, and registration.
+- Authenticated routes: shared role-aware Dashboard, Incidents, Tasks, Analytics, and Profile pages.
+- The application does not maintain separate Reporter, Responder, or Admin pages; each shared page renders role-specific sections and actions.
 
 ---
 
