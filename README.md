@@ -28,7 +28,6 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 - [Seeded Accounts](#seeded-accounts)
 - [Environment Variables](#environment-variables)
 - [API Overview](#api-overview)
-- [Testing](#testing)
 - [Deployment](#deployment)
 - [System Flow](#system-flow)
 - [Troubleshooting](#troubleshooting)
@@ -92,7 +91,6 @@ A full-stack operations command center for incident triage, SLA tracking, execut
 
 ### Tooling
 - Docker / Docker Compose
-- Playwright (E2E)
 
 ---
 
@@ -234,17 +232,6 @@ npm run dev
 - Admin broadcast topic: `/topic/admin/alerts`
 - Assigned responder queue: `/queue/users/{userId}/alerts`
 - Frontend users see recent live alerts in the header alert tray.
-
----
-
-## Testing
-
-### Frontend E2E
-```bash
-cd frontend
-npx playwright install chromium
-npm run test:e2e
-```
 
 ---
 
