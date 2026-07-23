@@ -57,8 +57,8 @@ CI/CD status is validated on every push to `main`.
 
 ## Live Deployment
 
-- Live application: https://d231036zukeq44.cloudfront.net/app
-- API base: https://d231036zukeq44.cloudfront.net/app/api/
+- Live application: https://d231036zukeq44.cloudfront.net/
+- API base: https://d231036zukeq44.cloudfront.net/api/
 - GitHub repository: https://github.com/shashank35i/OpsPilot-AI
 
 Use the demo accounts below to explore Reporter, Responder, and Admin workflows.
