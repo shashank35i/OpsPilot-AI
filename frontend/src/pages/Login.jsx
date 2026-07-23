@@ -1,9 +1,43 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { ArrowLeftIcon, MoonIcon, SunIcon, SparklesIcon, ShieldCheckIcon, UserCheckIcon, LockKeyholeIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  BellRingIcon,
+  BriefcaseBusinessIcon,
+  CheckCircle2Icon,
+  MoonIcon,
+  ShieldCheckIcon,
+  SunIcon,
+  TerminalSquareIcon,
+  UserCheckIcon,
+} from "lucide-react";
 import { getTheme, setTheme } from "../lib/theme";
 import { BrandMark } from "../components/BrandMark";
+
+const rolePresets = [
+  {
+    role: "Reporter",
+    email: "reporter@opspilot.ai",
+    password: "Reporter@123",
+    summary: "Create issues, track status, receive update requests.",
+    Icon: UserCheckIcon,
+  },
+  {
+    role: "Responder",
+    email: "responder@opspilot.ai",
+    password: "Responder@123",
+    summary: "Claim work, update tickets, review severity, resolve incidents.",
+    Icon: BriefcaseBusinessIcon,
+  },
+  {
+    role: "Admin",
+    email: "admin@opspilot.ai",
+    password: "Admin@123",
+    summary: "Manage queues, SLA policy, escalation, and system oversight.",
+    Icon: ShieldCheckIcon,
+  },
+];
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -34,6 +68,12 @@ export const Login = () => {
     setThemeState(next);
   };
 
+  const applyPreset = (preset) => {
+    setEmail(preset.email);
+    setPassword(preset.password);
+    setError("");
+  };
+
   return (
     <div className="auth-page">
       <header className="auth-topbar">
@@ -44,18 +84,24 @@ export const Login = () => {
       <div className="auth-shell">
         <section className="auth-aside">
           <div className="auth-aside-inner">
-            <div className="badge">
-              <SparklesIcon size={14} />
-              Welcome back
+            <div className="console-kicker">
+              <TerminalSquareIcon size={14} />
+              /auth/session/login
             </div>
-            <h1>Operate incidents with confidence and speed.</h1>
+            <h1>Access the incident command console.</h1>
             <p className="muted">
-              Access your command center to triage events, execute tasks, and keep every SLA under control.
+              Sign in as a seeded role to review the exact Reporter, Responder, and Admin workflows.
             </p>
-            <div className="auth-points">
-              <div><ShieldCheckIcon size={14} /> Enterprise controls</div>
-              <div><UserCheckIcon size={14} /> Role-based workflows</div>
-              <div><LockKeyholeIcon size={14} /> Session and audit hardening</div>
+            <div className="console-strip">
+              <span>env</span>
+              <strong>production</strong>
+              <span>auth</span>
+              <strong>jwt + session blacklist</strong>
+            </div>
+            <div className="auth-points command-list">
+              <div><CheckCircle2Icon size={14} /> Role-scoped dashboard access</div>
+              <div><BellRingIcon size={14} /> Live incident and SLA alerts</div>
+              <div><ShieldCheckIcon size={14} /> Revoked-token enforcement</div>
             </div>
           </div>
         </section>
@@ -87,6 +133,20 @@ export const Login = () => {
               </label>
               <button className="btn primary" type="submit">Sign in</button>
             </form>
+
+            <div className="role-presets" aria-label="Seeded role sign in options">
+              <div className="section-title">Seeded role access</div>
+              {rolePresets.map((preset) => (
+                <button className="role-card" key={preset.role} type="button" onClick={() => applyPreset(preset)}>
+                  <span className="role-icon"><preset.Icon size={16} /></span>
+                  <span>
+                    <strong>{preset.role}</strong>
+                    <small>{preset.summary}</small>
+                    <code>{preset.email}</code>
+                  </span>
+                </button>
+              ))}
+            </div>
 
             <div className="auth-actions">
               <p className="muted">New here? <Link to="/register">Create an account</Link></p>

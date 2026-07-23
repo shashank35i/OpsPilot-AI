@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { ArrowLeftIcon, MoonIcon, SunIcon, SparklesIcon, UserCheckIcon, ShieldCheckIcon, WorkflowIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2Icon, GitBranchIcon, MoonIcon, ShieldCheckIcon, SunIcon, TerminalSquareIcon, UserCheckIcon } from "lucide-react";
 import { getTheme, setTheme } from "../lib/theme";
 import { BrandMark } from "../components/BrandMark";
 
@@ -45,18 +45,24 @@ export const Register = () => {
       <div className="auth-shell">
         <section className="auth-aside">
           <div className="auth-aside-inner">
-            <div className="badge">
-              <SparklesIcon size={14} />
-              Set up your workspace
+            <div className="console-kicker">
+              <TerminalSquareIcon size={14} />
+              /auth/register/reporter
             </div>
-            <h1>Create an operations command center in minutes.</h1>
+            <h1>Create a Reporter account.</h1>
             <p className="muted">
-              Spin up your workspace and onboard teams into role-based incident management.
+              Public registration is intentionally limited to Reporter users. Responder and Admin users are seeded or managed by administrators.
             </p>
+            <div className="console-strip">
+              <span>role</span>
+              <strong>Reporter</strong>
+              <span>scope</span>
+              <strong>own incidents</strong>
+            </div>
             <div className="auth-points">
-              <div><UserCheckIcon size={14} /> Team onboarding ready</div>
-              <div><ShieldCheckIcon size={14} /> Secure by default</div>
-              <div><WorkflowIcon size={14} /> Workflow templates included</div>
+              <div><UserCheckIcon size={14} /> Submit incidents</div>
+              <div><CheckCircle2Icon size={14} /> Track assigned responder and SLA status</div>
+              <div><ShieldCheckIcon size={14} /> Receive update requests and resolution changes</div>
             </div>
           </div>
         </section>
@@ -68,7 +74,7 @@ export const Register = () => {
                 <BrandMark />
                 <div>
                   <div className="brand">OpsPilot AI</div>
-                  <div className="muted" style={{ fontSize: 13 }}>Create account</div>
+                  <div className="muted" style={{ fontSize: 13 }}>Create Reporter account</div>
                 </div>
               </div>
               <button className="theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
@@ -76,6 +82,10 @@ export const Register = () => {
               </button>
             </div>
             {error && <div className="error-box">{error}</div>}
+            <div className="notice-line">
+              <GitBranchIcon size={14} />
+              New accounts are created with Reporter permissions only.
+            </div>
 
             <form onSubmit={onSubmit} className="auth-form">
               <label className="field">
@@ -90,7 +100,7 @@ export const Register = () => {
                 <span>Password</span>
                 <input className="input" placeholder="Create password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
               </label>
-              <button className="btn primary" type="submit">Create account</button>
+              <button className="btn primary" type="submit">Create Reporter account</button>
             </form>
 
             <div className="auth-actions">

@@ -5,6 +5,7 @@ import {
   BellIcon,
   CheckCircle2Icon,
   ClockIcon,
+  CommandIcon,
   InboxIcon,
   PlusIcon,
   ShieldCheckIcon,
@@ -59,7 +60,7 @@ const IncidentList = ({ title, items = [], empty = "No incidents in this queue."
               <div>
                 <div className="row-title">{incident.title}</div>
                 <div className="muted row-meta">
-                  {incident.category || "Operations"} · {incident.severity} · Assigned: {incident.assignee || "Unassigned"}
+                  {incident.category || "Operations"} / {incident.severity} / Assigned: {incident.assignee || "Unassigned"}
                 </div>
                 <div className="muted row-meta">
                   SLA: <span className={`status-badge tone-${slaTone(incident.dueAt)}`}>{timeLeft(incident.dueAt)}</span>
@@ -105,10 +106,10 @@ const ActivityList = ({ title, items = [] }) => (
 
 const ReporterDashboard = ({ data }) => (
   <>
-    <section className="card hero-panel dashboard-hero">
+    <section className="card hero-panel dashboard-hero console-hero">
       <div>
-        <div className="badge">Reporter Dashboard</div>
-        <h1>Your reported incidents and SLA expectations.</h1>
+        <div className="console-kicker"><CommandIcon size={14} /> reporter.dashboard</div>
+        <h1>Your incidents, status, and SLA expectations.</h1>
         <p className="muted">Track your own tickets, responder assignment, current status, and latest updates.</p>
       </div>
       <Link className="btn primary" to="/app/incidents">
@@ -135,9 +136,9 @@ const ReporterDashboard = ({ data }) => (
 
 const ResponderDashboard = ({ data }) => (
   <>
-    <section className="card hero-panel dashboard-hero">
+    <section className="card hero-panel dashboard-hero console-hero">
       <div>
-        <div className="badge">Responder Dashboard</div>
+        <div className="console-kicker"><CommandIcon size={14} /> responder.dashboard</div>
         <h1>Assigned work, unclaimed incidents, and SLA risk.</h1>
         <p className="muted">Use the incident queue for claim, update, comment, escalation, review, and resolution actions.</p>
       </div>
@@ -167,9 +168,9 @@ const ResponderDashboard = ({ data }) => (
 
 const AdminDashboard = ({ data }) => (
   <>
-    <section className="card hero-panel dashboard-hero">
+    <section className="card hero-panel dashboard-hero console-hero">
       <div>
-        <div className="badge">Admin Dashboard</div>
+        <div className="console-kicker"><CommandIcon size={14} /> admin.dashboard</div>
         <h1>System-wide incident control and responder workload.</h1>
         <p className="muted">Monitor all incidents, SLA pressure, trends, role distribution, and reassignment needs.</p>
       </div>
@@ -198,7 +199,7 @@ const AdminDashboard = ({ data }) => (
             <div className="dashboard-row" key={row.id}>
               <div>
                 <div className="row-title">{row.name}</div>
-                <div className="muted row-meta">Open {row.open} · Resolved {row.resolved}</div>
+                <div className="muted row-meta">Open {row.open} / Resolved {row.resolved}</div>
               </div>
               <span className="pill">{row.assigned} assigned</span>
             </div>

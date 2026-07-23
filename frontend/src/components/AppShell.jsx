@@ -12,6 +12,8 @@ import {
   SparklesIcon,
   SearchIcon,
   BellIcon,
+  CommandIcon,
+  ServerIcon,
 } from "lucide-react";
 import { getTheme, setTheme } from "../lib/theme";
 import { BrandMark } from "./BrandMark";
@@ -93,13 +95,24 @@ export const AppShell = () => {
           <BrandMark />
           <div>
             <div className="brand">OpsPilot AI</div>
-            <div className="muted">Enterprise Command Suite</div>
+            <div className="muted">Incident command console</div>
+          </div>
+        </div>
+
+        <div className="sidebar-context">
+          <div>
+            <span>workspace</span>
+            <strong>opspilot-prod</strong>
+          </div>
+          <div>
+            <span>role</span>
+            <strong>{user?.role || "Reporter"}</strong>
           </div>
         </div>
 
         <div className="sidebar-badge">
           <SparklesIcon size={14} />
-          <span>AI Scoring Online</span>
+          <span>Gemini severity online</span>
         </div>
 
         <div className="nav-group">
@@ -123,11 +136,11 @@ export const AppShell = () => {
             <div className="workspace">
               <div style={{ fontWeight: 700 }}>OpsPilot AI</div>
               <div className="muted" style={{ fontSize: 12 }}>
-                Incident command and SLA intelligence
+                Incident command / SLA operations
               </div>
             </div>
-            <span className="pill hide-mobile">Production</span>
-            <span className="pill hide-mobile">{user?.role || "Reporter"}</span>
+            <span className="pill hide-mobile"><ServerIcon size={12} /> Production</span>
+            <span className="pill hide-mobile"><CommandIcon size={12} /> {user?.role || "Reporter"}</span>
           </div>
 
           <div className="right">
