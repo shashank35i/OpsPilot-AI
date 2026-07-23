@@ -1,0 +1,142 @@
+name: Deploy OpsPilot to AWS
+
+on:
+  workflow_run:
+    workflows:
+      - "OpsPilot CI"
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: opspilot-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: opspilot-backend
+
+jobs:
+  deploy-backend:
+    name: Deploy backend to EC2
+
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            ./backend
+
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Create EC2 deployment command
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          cat > deploy-commands.json <<EOF
+          {
+            "commands": [
+              "set -e",
+              "AWS_REGION='${AWS_REGION}'",
+              "ECR_REGISTRY='${ECR_REGISTRY}'",
+              "ECR_REPOSITORY='${ECR_REPOSITORY}'",
+              "IMAGE_TAG='${IMAGE_TAG}'",
+
+              "get_parameter() { aws ssm get-parameter --region \\\"\\$AWS_REGION\\\" --name \\\"\\$1\\\" --query 'Parameter.Value' --output text; }",
+              "get_secret() { aws ssm get-parameter --region \\\"\\$AWS_REGION\\\" --name \\\"\\$1\\\" --with-decryption --query 'Parameter.Value' --output text; }",
+
+              "DATABASE_URL=\\$(get_parameter '/opspilot/prod/db-url')",
+              "DATABASE_USERNAME=\\$(get_parameter '/opspilot/prod/db-username')",
+              "DATABASE_PASSWORD=\\$(get_secret '/opspilot/prod/db-password')",
+              "REDIS_URL=\\$(get_parameter '/opspilot/prod/redis-url')",
+              "CLIENT_ORIGIN=\\$(get_parameter '/opspilot/prod/client-origin')",
+              "JWT_SECRET=\\$(get_secret '/opspilot/prod/jwt-secret')",
+              "GEMINI_API_KEY=\\$(get_secret '/opspilot/prod/gemini-api-key')",
+
+              "sudo mkdir -p /opt/opspilot",
+              "sudo touch /opt/opspilot/opspilot.env",
+              "sudo chmod 600 /opt/opspilot/opspilot.env",
+
+              "sudo bash -c \\\"cat > /opt/opspilot/opspilot.env <<ENVFILE\nPORT=8080\nDATABASE_URL=\\$DATABASE_URL\nDATABASE_USERNAME=\\$DATABASE_USERNAME\nDATABASE_PASSWORD=\\$DATABASE_PASSWORD\nJPA_DDL_AUTO=update\nREDIS_URL=\\$REDIS_URL\nCLIENT_ORIGIN=\\$CLIENT_ORIGIN\nJWT_SECRET=\\$JWT_SECRET\nJWT_TTL_HOURS=8\nSEED_ON_START=0\nAPP_VERSION=\\$IMAGE_TAG\nSLA_OVERDUE_SCHEDULER_ENABLED=true\nSLA_OVERDUE_SCHEDULER_DELAY_MS=60000\nSLA_OVERDUE_BATCH_SIZE=100\nSLA_NEAR_THRESHOLD_PERCENT=80\nUNASSIGNED_ALERT_MINUTES=15\nGEMINI_API_KEY=\\$GEMINI_API_KEY\nGEMINI_MODEL=gemini-1.5-flash\nENVFILE\\\"",
+
+              "docker network create opspilot-network 2>/dev/null || true",
+              "docker network connect opspilot-network opspilot-redis 2>/dev/null || true",
+
+              "aws ecr get-login-password --region \\\"\\$AWS_REGION\\\" | docker login --username AWS --password-stdin \\\"\\$ECR_REGISTRY\\\"",
+              "docker pull \\\"\\$ECR_REGISTRY/\\$ECR_REPOSITORY:\\$IMAGE_TAG\\\"",
+
+              "docker stop opspilot-backend 2>/dev/null || true",
+              "docker rm opspilot-backend 2>/dev/null || true",
+
+              "docker run -d --name opspilot-backend --restart unless-stopped --network opspilot-network --memory=1g -p 127.0.0.1:8080:8080 --env-file /opt/opspilot/opspilot.env \\\"\\$ECR_REGISTRY/\\$ECR_REPOSITORY:\\$IMAGE_TAG\\\"",
+
+              "sleep 20",
+              "curl --fail http://127.0.0.1:8080/actuator/health",
+              "docker image prune -f"
+            ]
+          }
+          EOF
+
+      - name: Deploy through AWS Systems Manager
+        id: deploy
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --region "$AWS_REGION" \
+            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy OpsPilot backend" \
+            --parameters file://deploy-commands.json \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+
+          aws ssm wait command-executed \
+            --region "$AWS_REGION" \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ vars.EC2_INSTANCE_ID }}"
+
+      - name: Display deployment result
+        if: always()
+        run: |
+          aws ssm get-command-invocation \
+            --region "$AWS_REGION" \
+            --command-id "${{ steps.deploy.outputs.command_id }}" \
+            --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+            --query '{
+              Status:Status,
+              Output:StandardOutputContent,
+              Errors:StandardErrorContent
+            }'
