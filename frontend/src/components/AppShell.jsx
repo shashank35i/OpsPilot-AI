@@ -9,7 +9,6 @@ import {
   UserIcon,
   MoonIcon,
   SunIcon,
-  SparklesIcon,
   SearchIcon,
   BellIcon,
   CommandIcon,
@@ -110,10 +109,7 @@ export const AppShell = () => {
           </div>
         </div>
 
-        <div className="sidebar-badge">
-          <SparklesIcon size={14} />
-          <span>Gemini severity online</span>
-        </div>
+        <div className="sidebar-badge"><ServerIcon size={14} /> Production</div>
 
         <div className="nav-group">
           {navItems.map(({ to, label, Icon }) => (
@@ -134,10 +130,8 @@ export const AppShell = () => {
         <header className="header">
           <div className="left">
             <div className="workspace">
-              <div style={{ fontWeight: 700 }}>OpsPilot AI</div>
-              <div className="muted" style={{ fontSize: 12 }}>
-                Incident command / SLA operations
-              </div>
+              <div className="workspace-title">OpsPilot AI</div>
+              <div className="workspace-subtitle">Incident command / SLA operations</div>
             </div>
             <span className="pill hide-mobile"><ServerIcon size={12} /> Production</span>
             <span className="pill hide-mobile"><CommandIcon size={12} /> {user?.role || "Reporter"}</span>
@@ -155,7 +149,7 @@ export const AppShell = () => {
                 <SearchIcon size={16} />
               </button>
             </form>
-            <div style={{ position: "relative" }}>
+            <div className="alert-popover-anchor">
               <button className="theme-btn" onClick={() => setShowAlerts((open) => !open)} aria-label="Alerts">
                 <BellIcon size={16} />
                 {alerts.length ? <span className="alert-dot" /> : null}

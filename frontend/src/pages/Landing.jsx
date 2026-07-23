@@ -24,7 +24,7 @@ import { BrandMark } from "../components/BrandMark";
 import { getTheme, setTheme } from "../lib/theme";
 
 const statusRows = [
-  ["Platform", "AWS production", "live"],
+  ["Platform", "AWS deploy", "live"],
   ["Alerts", "WebSocket/STOMP", "connected"],
   ["Cache", "Redis", "ready"],
   ["Data", "MySQL", "online"],
@@ -222,7 +222,7 @@ export const Landing = () => {
         <section className="lp-section" id="architecture">
           <div className="lp-section-head">
             <span className="section-title">Architecture and reliability</span>
-            <h2>Production pieces shown as a compact flow.</h2>
+            <h2>Architecture shown as a compact flow.</h2>
           </div>
 
           <div className="lp-architecture-flow" aria-label="Architecture flow">

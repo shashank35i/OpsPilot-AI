@@ -41,4 +41,15 @@ function slaTone(dueAt) {
   return "success";
 }
 
-export { incidentBadges, taskBadges, timeLeft, slaProgress, slaTone };
+function formatDateTime(value) {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleString();
+}
+
+function displayName(value, fallback = "Unassigned") {
+  return value && String(value).trim() ? value : fallback;
+}
+
+export { incidentBadges, taskBadges, timeLeft, slaProgress, slaTone, formatDateTime, displayName };

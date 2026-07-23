@@ -1,7 +1,9 @@
 package ai.opspilot.web;
 
 import ai.opspilot.model.Task;
+import ai.opspilot.repo.IncidentRepository;
 import ai.opspilot.repo.TaskRepository;
+import ai.opspilot.repo.UserRepository;
 import ai.opspilot.security.UserPrincipal;
 import ai.opspilot.service.ActivityService;
 import ai.opspilot.service.CacheService;
@@ -26,12 +28,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
+  private final IncidentRepository incidents;
   private final TaskRepository tasks;
+  private final UserRepository users;
   private final ActivityService activity;
   private final CacheService cache;
 
-  public TaskController(TaskRepository tasks, ActivityService activity, CacheService cache) {
+  public TaskController(IncidentRepository incidents, TaskRepository tasks, UserRepository users, ActivityService activity, CacheService cache) {
+    this.incidents = incidents;
     this.tasks = tasks;
+    this.users = users;
     this.activity = activity;
     this.cache = cache;
   }
@@ -46,7 +52,7 @@ public class TaskController {
     List<Task> found = cleanQ.isBlank()
         ? tasks.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 200))
         : tasks.findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(cleanQ, PageRequest.of(0, 200));
-    Map<String, Object> payload = Map.of("items", found);
+    Map<String, Object> payload = Map.of("items", found.stream().map(this::taskDto).toList());
     if (cleanQ.isBlank()) cache.set("tasks:all", payload, Duration.ofSeconds(20));
     return payload;
   }
@@ -63,7 +69,7 @@ public class TaskController {
     tasks.save(task);
     activity.log(user.id(), "TASK_CREATED", "Task", task.getId(), "Task created: " + task.getTitle());
     cache.delete(List.of("tasks:all", "analytics:summary", "activities:latest"));
-    return Map.of("item", task);
+    return Map.of("item", taskDto(task));
   }
 
   @PatchMapping("/{id}")
@@ -78,7 +84,33 @@ public class TaskController {
     tasks.save(task);
     activity.log(user.id(), "TASK_UPDATED", "Task", task.getId(), "Task updated: " + task.getTitle(), metadata);
     cache.delete(List.of("tasks:all", "analytics:summary", "activities:latest"));
-    return Map.of("item", task);
+    return Map.of("item", taskDto(task));
+  }
+
+  private Map<String, Object> taskDto(Task task) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    map.put("_id", task.getId());
+    map.put("title", task.getTitle());
+    map.put("status", task.getStatus());
+    map.put("priority", task.getPriority());
+    map.put("incident", task.getIncident());
+    map.put("incidentTitle", incidentTitle(task.getIncident()));
+    map.put("assignee", task.getAssignee());
+    map.put("assigneeName", displayName(task.getAssignee()));
+    map.put("dueAt", task.getDueAt());
+    map.put("createdAt", task.getCreatedAt());
+    map.put("updatedAt", task.getUpdatedAt());
+    return map;
+  }
+
+  private String incidentTitle(String id) {
+    if (id == null || id.isBlank()) return "No incident linked";
+    return incidents.findById(id).map(incident -> incident.getTitle() == null || incident.getTitle().isBlank() ? id : incident.getTitle()).orElse(id);
+  }
+
+  private String displayName(String id) {
+    if (id == null || id.isBlank()) return "Unassigned";
+    return users.findById(id).map(user -> user.getName() == null || user.getName().isBlank() ? user.getEmail() : user.getName()).orElse(id);
   }
 
   private static String defaultValue(String value, String fallback) {

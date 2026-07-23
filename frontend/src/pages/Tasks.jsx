@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { taskBadges } from "../lib/format";
+import { displayName, formatDateTime, taskBadges } from "../lib/format";
 import { readCache, writeCache } from "../lib/cache";
 import { InboxIcon } from "lucide-react";
 
@@ -10,6 +10,12 @@ export const Tasks = () => {
   const [items, setItems] = useState([]);
   const [title, setTitle] = useState("");
   const [busyId, setBusyId] = useState("");
+
+  const clearTaskCaches = () => {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith("tasks:list:") || key.startsWith("analytics:"))
+      .forEach((key) => localStorage.removeItem(key));
+  };
 
   const load = async () => {
     const q = searchParams.get("q") || "";
@@ -34,6 +40,7 @@ export const Tasks = () => {
   const create = async () => {
     if (!title.trim()) return;
     await api("/api/tasks", { method: "POST", body: JSON.stringify({ title, priority: "Medium" }) });
+    clearTaskCaches();
     setTitle("");
     load();
   };
@@ -45,6 +52,7 @@ export const Tasks = () => {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
+      clearTaskCaches();
       await load();
     } finally {
       setBusyId("");
@@ -56,7 +64,7 @@ export const Tasks = () => {
       <section className="card toolbar-shell">
         <div>
           <div className="section-title">Execution Board</div>
-          <h2 style={{ margin: "8px 0 0" }}>Operational task stream</h2>
+          <h2 style={{ margin: "8px 0 0" }}>Operational tasks</h2>
           {searchParams.get("q") ? (
             <div className="muted" style={{ marginTop: 6 }}>Search: "{searchParams.get("q")}"</div>
           ) : null}
@@ -73,16 +81,18 @@ export const Tasks = () => {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Related incident</th>
+                <th>Assignee</th>
                 <th>Status</th>
+                <th>Due time</th>
                 <th>Priority</th>
-                <th>Created</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={7}>
                     <div className="empty-state empty-table-state">
                       <InboxIcon size={20} />
                       <div>
@@ -97,10 +107,15 @@ export const Tasks = () => {
                 const badge = taskBadges[i.status] || { label: i.status, tone: "neutral" };
                 return (
                   <tr key={i._id}>
-                    <td>{i.title}</td>
+                    <td>
+                      <div className="incident-cell-title">{i.title}</div>
+                      <div className="incident-cell-meta">Updated {formatDateTime(i.updatedAt)}</div>
+                    </td>
+                    <td>{i.incidentTitle || "No incident linked"}</td>
+                    <td>{displayName(i.assigneeName)}</td>
                     <td><span className={`status-badge tone-${badge.tone}`}>{badge.label}</span></td>
+                    <td className="muted">{i.dueAt ? formatDateTime(i.dueAt) : "No due time"}</td>
                     <td><span className="pill">{i.priority}</span></td>
-                    <td className="muted">{new Date(i.createdAt).toLocaleString()}</td>
                     <td>
                       <div className="row-actions">
                         <select

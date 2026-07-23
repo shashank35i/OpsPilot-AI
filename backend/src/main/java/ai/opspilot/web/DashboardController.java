@@ -206,6 +206,8 @@ public class DashboardController {
     map.put("category", incident.getCategory());
     map.put("owner", incident.getOwner());
     map.put("assignee", incident.getAssignee());
+    map.put("ownerName", displayName(incident.getOwner()));
+    map.put("assigneeName", displayName(incident.getAssignee()));
     map.put("dueAt", incident.getDueAt());
     map.put("createdAt", incident.getCreatedAt());
     map.put("updatedAt", incident.getUpdatedAt());
@@ -213,6 +215,11 @@ public class DashboardController {
     map.put("slaOverdue", incident.isSlaOverdue());
     map.put("score", priority.score(incident));
     return map;
+  }
+
+  private String displayName(String id) {
+    if (id == null || id.isBlank()) return "Unassigned";
+    return users.findById(id).map(user -> user.getName() == null || user.getName().isBlank() ? user.getEmail() : user.getName()).orElse(id);
   }
 
   private static String formatDuration(Double seconds) {

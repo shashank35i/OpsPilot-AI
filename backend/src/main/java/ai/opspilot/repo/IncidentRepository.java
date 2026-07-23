@@ -136,6 +136,45 @@ public interface IncidentRepository extends JpaRepository<Incident, String> {
 
   @Query(
       value = """
+          select count(*)
+          from incidents
+          where resolved_at is not null
+          """,
+      nativeQuery = true
+  )
+  long countResolvedWithResolutionTime();
+
+  @Query(
+      value = """
+          select count(*)
+          from incidents
+          where resolved_at is not null
+            and due_at is not null
+            and resolved_at <= due_at
+          """,
+      nativeQuery = true
+  )
+  long countResolvedWithinSla();
+
+  @Query(
+      value = """
+          select date(created_at) day,
+                 sum(case when status in ('Resolved', 'Closed') then 0 else 1 end) open_count,
+                 sum(case when status in ('Resolved', 'Closed') then 1 else 0 end) resolved_count
+          from incidents
+          where created_at >= :since
+          group by date(created_at)
+          order by day
+          """,
+      nativeQuery = true
+  )
+  List<Object[]> openResolvedTrend(@Param("since") Instant since);
+
+  @Query("select i.assignee, count(i) from Incident i where i.assignee is not null group by i.assignee")
+  List<Object[]> countByAssigneeGroup();
+
+  @Query(
+      value = """
           select *
           from incidents
           where sla_overdue = false

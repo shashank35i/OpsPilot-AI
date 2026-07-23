@@ -4,6 +4,7 @@ import ai.opspilot.model.Incident;
 import ai.opspilot.model.Task;
 import ai.opspilot.repo.IncidentRepository;
 import ai.opspilot.repo.TaskRepository;
+import ai.opspilot.repo.UserRepository;
 import ai.opspilot.security.RoleGuard;
 import ai.opspilot.security.UserPrincipal;
 import ai.opspilot.service.ActivityService;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class IncidentController {
   private final IncidentRepository incidents;
   private final TaskRepository tasks;
+  private final UserRepository users;
   private final PriorityService priority;
   private final ActivityService activity;
   private final CacheService cache;
@@ -48,6 +51,7 @@ public class IncidentController {
   public IncidentController(
       IncidentRepository incidents,
       TaskRepository tasks,
+      UserRepository users,
       PriorityService priority,
       ActivityService activity,
       CacheService cache,
@@ -58,6 +62,7 @@ public class IncidentController {
   ) {
     this.incidents = incidents;
     this.tasks = tasks;
+    this.users = users;
     this.priority = priority;
     this.activity = activity;
     this.cache = cache;
@@ -95,7 +100,8 @@ public class IncidentController {
       }
     }
 
-    Map<String, Object> payload = Map.of("items", found.stream().map(this::withScore).toList());
+    Map<String, String> names = userNames(found);
+    Map<String, Object> payload = Map.of("items", found.stream().map(incident -> withScore(incident, names)).toList());
     return payload;
   }
 
@@ -259,6 +265,10 @@ public class IncidentController {
   }
 
   private Map<String, Object> withScore(Incident incident) {
+    return withScore(incident, userNames(List.of(incident)));
+  }
+
+  private Map<String, Object> withScore(Incident incident, Map<String, String> names) {
     Map<String, Object> map = new LinkedHashMap<>();
     map.put("_id", incident.getId());
     map.put("title", incident.getTitle());
@@ -272,6 +282,8 @@ public class IncidentController {
     map.put("status", incident.getStatus());
     map.put("owner", incident.getOwner());
     map.put("assignee", incident.getAssignee());
+    map.put("ownerName", displayName(incident.getOwner(), names));
+    map.put("assigneeName", displayName(incident.getAssignee(), names));
     map.put("tags", incident.getTags());
     map.put("slaHours", incident.getSlaHours());
     map.put("dueAt", incident.getDueAt());
@@ -285,6 +297,22 @@ public class IncidentController {
     map.put("updatedAt", incident.getUpdatedAt());
     map.put("score", priority.score(incident));
     return map;
+  }
+
+  private Map<String, String> userNames(List<Incident> items) {
+    List<String> ids = items.stream()
+        .flatMap(incident -> Stream.of(incident.getOwner(), incident.getAssignee()))
+        .filter(id -> id != null && !id.isBlank())
+        .distinct()
+        .toList();
+    Map<String, String> names = new LinkedHashMap<>();
+    users.findAllById(ids).forEach(user -> names.put(user.getId(), user.getName() == null || user.getName().isBlank() ? user.getEmail() : user.getName()));
+    return names;
+  }
+
+  private static String displayName(String id, Map<String, String> names) {
+    if (id == null || id.isBlank()) return "Unassigned";
+    return names.getOrDefault(id, id);
   }
 
   private void invalidateIncidentCaches(String... extraKeys) {

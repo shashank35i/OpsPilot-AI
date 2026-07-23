@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api";
 import { readCache, writeCache } from "../lib/cache";
-import { incidentBadges, slaTone, timeLeft } from "../lib/format";
+import { displayName, formatDateTime, incidentBadges, slaTone, timeLeft } from "../lib/format";
 
 const Stat = ({ label, value, Icon = InboxIcon }) => (
   <div className="kpi-card">
@@ -56,18 +56,19 @@ const IncidentList = ({ title, items = [], empty = "No incidents in this queue."
         items.map((incident) => {
           const badge = incidentBadges[incident.status] || { label: incident.status, tone: "neutral" };
           return (
-            <div className="dashboard-row" key={incident._id}>
+            <Link className="dashboard-row clickable-row" key={incident._id} to={`/app/incidents?q=${encodeURIComponent(incident.title || "")}`}>
               <div>
                 <div className="row-title">{incident.title}</div>
                 <div className="muted row-meta">
-                  {incident.category || "Operations"} / {incident.severity} / Assigned: {incident.assignee || "Unassigned"}
+                  {incident.category || "Operations"} / {incident.severity} / {displayName(incident.assigneeName)}
                 </div>
                 <div className="muted row-meta">
                   SLA: <span className={`status-badge tone-${slaTone(incident.dueAt)}`}>{timeLeft(incident.dueAt)}</span>
+                  <span> / Updated {formatDateTime(incident.updatedAt)}</span>
                 </div>
               </div>
               <span className={`status-badge tone-${badge.tone}`}>{badge.label}</span>
-            </div>
+            </Link>
           );
         })
       )}

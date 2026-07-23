@@ -95,7 +95,7 @@ export const Login = () => {
             </p>
             <div className="console-strip">
               <span>env</span>
-              <strong>production</strong>
+              <strong>live</strong>
               <span>auth</span>
               <strong>JWT + Redis revocation</strong>
             </div>
