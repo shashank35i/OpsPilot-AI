@@ -1,0 +1,396 @@
+{
+  "info": {
+    "name": "OpsPilot API",
+    "description": "Postman collection for OpsPilot auth, dashboard, incident, task, analytics, and admin workflows.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login Reporter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{reporter_email}}\",\n  \"password\": \"{{reporter_password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Login Responder",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{responder_email}}\",\n  \"password\": \"{{responder_password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Role Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/dashboard"
+          }
+        },
+        {
+          "name": "Activities",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/activities"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Incidents",
+      "item": [
+        {
+          "name": "List Incidents",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/incidents"
+          }
+        },
+        {
+          "name": "Create Incident",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.item && json.item.id) pm.environment.set('incident_id', json.item.id);",
+                  "if (json.item && json.item._id) pm.environment.set('incident_id', json.item._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Payment gateway latency spike\",\n  \"description\": \"Checkout payment requests are timing out for US-East users.\",\n  \"severity\": \"High\",\n  \"category\": \"Payments\",\n  \"tags\": [\"payments\", \"latency\"]\n}"
+            },
+            "url": "{{base_url}}/incidents"
+          }
+        },
+        {
+          "name": "Claim Incident",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/incidents/{{incident_id}}/claim"
+          }
+        },
+        {
+          "name": "Update Incident",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Investigating\"\n}"
+            },
+            "url": "{{base_url}}/incidents/{{incident_id}}"
+          }
+        },
+        {
+          "name": "Review Severity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"severity\": \"High\",\n  \"note\": \"Responder reviewed severity.\"\n}"
+            },
+            "url": "{{base_url}}/incidents/{{incident_id}}/review-severity"
+          }
+        },
+        {
+          "name": "Generate Summary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"incidentId\": \"{{incident_id}}\"\n}"
+            },
+            "url": "{{base_url}}/ai/incident-summary"
+          }
+        },
+        {
+          "name": "Suggest Tasks",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/incidents/{{incident_id}}/auto-tasks"
+          }
+        },
+        {
+          "name": "Resolve Incident",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/incidents/{{incident_id}}/resolve"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/tasks"
+          }
+        },
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.item && json.item._id) pm.environment.set('task_id', json.item._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Verify rollback path\",\n  \"status\": \"Todo\",\n  \"priority\": \"High\",\n  \"incident\": \"{{incident_id}}\"\n}"
+            },
+            "url": "{{base_url}}/tasks"
+          }
+        },
+        {
+          "name": "Move Task To In Progress",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"In Progress\"\n}"
+            },
+            "url": "{{base_url}}/tasks/{{task_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics And Admin",
+      "item": [
+        {
+          "name": "Analytics Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/analytics/summary"
+          }
+        },
+        {
+          "name": "Cache Metrics",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/analytics/cache-metrics"
+          }
+        },
+        {
+          "name": "Priority Scoring Metadata",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/models/priority"
+          }
+        },
+        {
+          "name": "List SLA Policies",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/admin/sla-policies"
+          }
+        },
+        {
+          "name": "Upsert SLA Policy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"severity\": \"Critical\",\n  \"thresholdMinutes\": 15\n}"
+            },
+            "url": "{{base_url}}/admin/sla-policies"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    }
+  ]
+}
