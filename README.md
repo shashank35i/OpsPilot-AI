@@ -171,11 +171,13 @@ npm run dev
 | `DATABASE_URL` | Yes | `jdbc:mysql://localhost:3306/opspilot?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
 | `DATABASE_USERNAME` | Yes | `opspilot` |
 | `DATABASE_PASSWORD` | Yes | `opspilot` |
+| `JPA_DDL_AUTO` | Optional | `update` |
+| `REDIS_URL` | Optional | `redis://localhost:6379` |
+| `CLIENT_ORIGIN` | Yes | `http://localhost:5173` |
 | `JWT_SECRET` | Yes | `change_me` |
 | `JWT_TTL_HOURS` | Optional | `8` |
-| `CLIENT_ORIGIN` | Yes | `http://localhost:5173` |
-| `REDIS_URL` | Optional | `redis://localhost:6379` |
 | `SEED_ON_START` | Optional | `1` |
+| `APP_VERSION` | Optional | `1.0.0` |
 | `SLA_OVERDUE_SCHEDULER_ENABLED` | Optional | `true` |
 | `SLA_OVERDUE_SCHEDULER_DELAY_MS` | Optional | `60000` |
 | `SLA_OVERDUE_BATCH_SIZE` | Optional | `100` |
@@ -241,7 +243,7 @@ npm run dev
 1. Create `MySQL` service
 2. (Recommended) Create `Redis` service
 3. Deploy backend service from `/backend`
-4. Set backend env vars (`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `CLIENT_ORIGIN`, optional `REDIS_URL`, `JWT_TTL_HOURS`)
+4. Set the backend environment variables listed above.
 5. Deploy frontend service from `/frontend` (or Cloudflare Pages)
 
 ### AWS
