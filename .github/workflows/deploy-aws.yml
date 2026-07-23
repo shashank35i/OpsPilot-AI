@@ -22,13 +22,11 @@ env:
   ECR_REPOSITORY: opspilot-backend
 
 jobs:
-  deploy-backend:
-    name: Deploy backend to EC2
-
+  deploy:
+    name: Deploy backend and frontend
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
-
     runs-on: ubuntu-latest
 
     steps:
@@ -46,6 +44,8 @@ jobs:
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
+
+      # ---------------- BACKEND ----------------
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -109,32 +109,32 @@ jobs:
           JWT_SECRET="$(get_secure_parameter "/opspilot/prod/jwt-secret")"
           GEMINI_API_KEY="$(get_secure_parameter "/opspilot/prod/gemini-api-key")"
 
+          echo "Creating backend environment file..."
+
           sudo mkdir -p /opt/opspilot
 
-          sudo touch "$ENV_FILE"
-          sudo chmod 600 "$ENV_FILE"
-
-          sudo bash -c "cat > '$ENV_FILE'" <<ENVFILE
+          sudo tee "$ENV_FILE" > /dev/null <<EOF
           PORT=8080
-          DATABASE_URL=${DATABASE_URL}
-          DATABASE_USERNAME=${DATABASE_USERNAME}
-          DATABASE_PASSWORD=${DATABASE_PASSWORD}
+          DATABASE_URL=$DATABASE_URL
+          DATABASE_USERNAME=$DATABASE_USERNAME
+          DATABASE_PASSWORD=$DATABASE_PASSWORD
           JPA_DDL_AUTO=update
-          REDIS_URL=${REDIS_URL}
-          CLIENT_ORIGIN=${CLIENT_ORIGIN}
-          JWT_SECRET=${JWT_SECRET}
-          JWT_TTL_HOURS=8
-          SEED_ON_START=0
-          APP_VERSION=${IMAGE_URI##*:}
+          REDIS_URL=$REDIS_URL
+          CLIENT_ORIGIN=$CLIENT_ORIGIN
+          JWT_SECRET=$JWT_SECRET
+          JWT_TTL_HOURS=24
+          SEED_ON_START=false
+          APP_VERSION=1.0.0
           SLA_OVERDUE_SCHEDULER_ENABLED=true
           SLA_OVERDUE_SCHEDULER_DELAY_MS=60000
           SLA_OVERDUE_BATCH_SIZE=100
           SLA_NEAR_THRESHOLD_PERCENT=80
-          UNASSIGNED_ALERT_MINUTES=15
-          GEMINI_API_KEY=${GEMINI_API_KEY}
-          GEMINI_MODEL=gemini-1.5-flash
-          JAVA_TOOL_OPTIONS=-Xms128m -Xmx512m
-          ENVFILE
+          UNASSIGNED_ALERT_MINUTES=30
+          GEMINI_API_KEY=$GEMINI_API_KEY
+          GEMINI_MODEL=gemini-2.0-flash
+          EOF
+
+          sudo chmod 600 "$ENV_FILE"
 
           echo "Preparing Docker network..."
 
@@ -154,7 +154,7 @@ jobs:
               --username AWS \
               --password-stdin "$ECR_REGISTRY"
 
-          echo "Pulling tested backend image..."
+          echo "Pulling backend image..."
 
           docker pull "$IMAGE_URI"
 
@@ -170,33 +170,40 @@ jobs:
             --restart unless-stopped \
             --network opspilot-network \
             --memory=1g \
-            -p 127.0.0.1:8080:8080 \
+            -p 8080:8080 \
             --env-file "$ENV_FILE" \
             "$IMAGE_URI"
 
           echo "Waiting for Spring Boot..."
 
-          for attempt in $(seq 1 24); do
+          for attempt in $(seq 1 36); do
             if curl --silent --fail \
               http://127.0.0.1:8080/actuator/health >/dev/null; then
-
               echo "OpsPilot backend is healthy."
               docker image prune -f
               exit 0
             fi
 
-            echo "Health check attempt $attempt/24 failed. Retrying..."
+            if ! docker ps \
+              --format '{{.Names}}' |
+              grep -qx opspilot-backend; then
+              echo "Backend container stopped unexpectedly."
+              docker logs --tail 200 opspilot-backend || true
+              exit 1
+            fi
+
+            echo "Health check attempt $attempt/36 failed. Retrying..."
             sleep 5
           done
 
           echo "Backend health check failed."
-          docker logs --tail 200 opspilot-backend
+          docker logs --tail 200 opspilot-backend || true
           exit 1
           SCRIPT
 
           chmod +x deploy-ec2.sh
 
-      - name: Deploy through AWS Systems Manager
+      - name: Deploy backend through AWS Systems Manager
         env:
           EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
         run: |
@@ -216,25 +223,33 @@ jobs:
             --instance-ids "$EC2_INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy OpsPilot backend ${{ github.event.workflow_run.head_sha }}" \
+            --timeout-seconds 1200 \
             --parameters file://ssm-parameters.json \
             --query "Command.CommandId" \
             --output text)
 
           echo "SSM command ID: $COMMAND_ID"
 
-          aws ssm wait command-executed \
-            --region "$AWS_REGION" \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$EC2_INSTANCE_ID" || true
+          STATUS="Pending"
 
-          STATUS=$(aws ssm get-command-invocation \
-            --region "$AWS_REGION" \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$EC2_INSTANCE_ID" \
-            --query "Status" \
-            --output text)
+          for attempt in $(seq 1 90); do
+            sleep 10
 
-          echo "Deployment status: $STATUS"
+            STATUS=$(aws ssm get-command-invocation \
+              --region "$AWS_REGION" \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+
+            echo "Deployment status: $STATUS"
+
+            case "$STATUS" in
+              Success|Failed|TimedOut|Cancelled|Cancelling)
+                break
+                ;;
+            esac
+          done
 
           echo "---------------- DEPLOYMENT OUTPUT ----------------"
 
@@ -243,7 +258,7 @@ jobs:
             --command-id "$COMMAND_ID" \
             --instance-id "$EC2_INSTANCE_ID" \
             --query "StandardOutputContent" \
-            --output text
+            --output text || true
 
           echo "---------------- DEPLOYMENT ERRORS ----------------"
 
@@ -252,11 +267,51 @@ jobs:
             --command-id "$COMMAND_ID" \
             --instance-id "$EC2_INSTANCE_ID" \
             --query "StandardErrorContent" \
-            --output text
+            --output text || true
 
           if [ "$STATUS" != "Success" ]; then
-            echo "Deployment failed with status: $STATUS"
+            echo "Backend deployment failed with status: $STATUS"
             exit 1
           fi
 
-          echo "OpsPilot backend deployment completed successfully."
+      # ---------------- FRONTEND ----------------
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: npm run build
+
+      - name: Upload frontend to S3
+        run: |
+          set -euo pipefail
+
+          aws s3 sync \
+            frontend/dist \
+            "s3://${{ vars.S3_BUCKET_NAME }}" \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          set -euo pipefail
+
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
+
+      - name: Deployment summary
+        run: |
+          echo "Backend deployment: successful"
+          echo "Frontend deployment: successful"
+          echo "Frontend URL: https://d231036zukeq44.cloudfront.net"
