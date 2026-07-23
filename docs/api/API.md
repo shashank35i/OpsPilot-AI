@@ -2,7 +2,7 @@
 
 Base URLs:
 
-- Live: `https://d231036zukeq44.cloudfront.net/app/api`
+- Live: `https://d231036zukeq44.cloudfront.net/api`
 - Local: `http://localhost:8080/api`
 
 Authentication uses `Authorization: Bearer <jwt>` after login. Public registration always creates a `Reporter` account.
@@ -163,4 +163,5 @@ SLA policy body:
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/health` | Public | Runtime health metadata. |
+
 

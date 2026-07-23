@@ -20,7 +20,7 @@
           </elementProp>
           <elementProp name="base_path" elementType="Argument">
             <stringProp name="Argument.name">base_path</stringProp>
-            <stringProp name="Argument.value">/app/api</stringProp>
+            <stringProp name="Argument.value">/api</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="email" elementType="Argument">
@@ -138,3 +138,4 @@
     </hashTree>
   </hashTree>
 </jmeterTestPlan>
+

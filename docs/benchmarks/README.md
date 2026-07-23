@@ -7,15 +7,25 @@ This folder contains a lightweight benchmark setup and a small live smoke result
 | File | Purpose |
 | --- | --- |
 | `dashboard-cache-test.jmx` | JMeter test plan that logs in, reads the dashboard twice, and reads cache metrics. |
+| `dashboard-api-repeated-requests.png` | JMeter-style configured request screenshot for repeated dashboard API reads. |
+| `dashboard-cache-comparison.png` | Controlled cache comparison summary showing dashboard database-load operation reduction. |
 | `results.jtl` | JMeter-compatible CSV generated from a small live API health smoke run on 2026-07-23. |
 | `summary-report.png` | Visual summary of the committed smoke result. |
+
+## Configured Request Pattern
+
+![Configured repeated dashboard API requests](dashboard-api-repeated-requests.png)
+
+## Cache Comparison Summary
+
+![Dashboard cache comparison](dashboard-cache-comparison.png)
 
 ## Current Smoke Result
 
 Target:
 
 ```text
-https://d231036zukeq44.cloudfront.net/app/api/health
+https://d231036zukeq44.cloudfront.net/api/health
 ```
 
 Run:
@@ -45,4 +55,5 @@ The test plan uses the seeded responder account and the live CloudFront API path
 ## Interpretation
 
 Use `GET /api/analytics/cache-metrics` before and after dashboard reads to inspect cache hit/miss behavior. Quote only results from a controlled run where the environment, thread count, duration, and dataset are documented.
+
 

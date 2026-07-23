@@ -9,7 +9,7 @@ A full-stack incident-management system with role-based workflows, AI-assisted t
 [![OpsPilot CI](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/ci.yml)
 [![Deploy OpsPilot to AWS](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/deploy-aws.yml/badge.svg?branch=main)](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/deploy-aws.yml)
 [![Live Application](https://img.shields.io/badge/Live-Application-2ea44f)](https://d231036zukeq44.cloudfront.net/app)
-[![API Health](https://img.shields.io/badge/API-Health-2563eb)](https://d231036zukeq44.cloudfront.net/app/api/health)
+[![API Health](https://img.shields.io/badge/API-Health-2563eb)](https://d231036zukeq44.cloudfront.net/api/health)
 
 ![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-Backend-6DB33F?logo=springboot&logoColor=white)
@@ -71,8 +71,8 @@ After a successful CI run on `main`, GitHub Actions authenticates to AWS through
 | Resource | URL |
 |---|---|
 | Application | [https://d231036zukeq44.cloudfront.net/app](https://d231036zukeq44.cloudfront.net/app) |
-| API base | [https://d231036zukeq44.cloudfront.net/app/api/](https://d231036zukeq44.cloudfront.net/app/api/) |
-| API health | [https://d231036zukeq44.cloudfront.net/app/api/health](https://d231036zukeq44.cloudfront.net/app/api/health) |
+| API base | [https://d231036zukeq44.cloudfront.net/api/](https://d231036zukeq44.cloudfront.net/api/) |
+| API health | [https://d231036zukeq44.cloudfront.net/api/health](https://d231036zukeq44.cloudfront.net/api/health) |
 | Repository | [OpsPilot-AI](https://github.com/shashank35i/OpsPilot-AI) |
 
 Use the seeded accounts below to explore Reporter, Responder, and Admin workflows.
@@ -452,6 +452,10 @@ Artifacts:
 - [JMeter test plan](docs/benchmarks/dashboard-cache-test.jmx)
 - [Raw results](docs/benchmarks/results.jtl)
 - [Methodology and findings](docs/benchmarks/README.md)
+
+![Configured repeated dashboard API requests](docs/benchmarks/dashboard-api-repeated-requests.png)
+
+![Dashboard cache comparison](docs/benchmarks/dashboard-cache-comparison.png)
 
 ![JMeter summary report](docs/benchmarks/summary-report.png)
 
