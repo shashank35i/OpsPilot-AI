@@ -20,21 +20,18 @@ const rolePresets = [
     role: "Reporter",
     email: "reporter@opspilot.ai",
     password: "Reporter@123",
-    summary: "Create issues, track status, receive update requests.",
     Icon: UserCheckIcon,
   },
   {
     role: "Responder",
     email: "responder@opspilot.ai",
     password: "Responder@123",
-    summary: "Claim work, update tickets, review severity, resolve incidents.",
     Icon: BriefcaseBusinessIcon,
   },
   {
     role: "Admin",
     email: "admin@opspilot.ai",
     password: "Admin@123",
-    summary: "Manage queues, SLA policy, escalation, and system oversight.",
     Icon: ShieldCheckIcon,
   },
 ];
@@ -58,7 +55,11 @@ export const Login = () => {
       localStorage.setItem("user", JSON.stringify(res.user));
       navigate("/app");
     } catch (err) {
-      setError(err.message || "Login failed");
+      setError(
+        err.message === "Failed to fetch"
+          ? "Unable to reach the authentication service. Please try again."
+          : err.message || "Login failed"
+      );
     }
   };
 
@@ -90,13 +91,13 @@ export const Login = () => {
             </div>
             <h1>Access the incident command console.</h1>
             <p className="muted">
-              Sign in as a seeded role to review the exact Reporter, Responder, and Admin workflows.
+              Use a demo role to explore Reporter, Responder, and Admin workflows.
             </p>
             <div className="console-strip">
               <span>env</span>
               <strong>production</strong>
               <span>auth</span>
-              <strong>jwt + session blacklist</strong>
+              <strong>JWT + Redis revocation</strong>
             </div>
             <div className="auth-points command-list">
               <div><CheckCircle2Icon size={14} /> Role-scoped dashboard access</div>
@@ -134,14 +135,16 @@ export const Login = () => {
               <button className="btn primary" type="submit">Sign in</button>
             </form>
 
-            <div className="role-presets" aria-label="Seeded role sign in options">
-              <div className="section-title">Seeded role access</div>
+            <div className="role-presets" aria-label="Demo account sign in options">
+              <div className="demo-presets-head">
+                <span>Demo accounts</span>
+                <small>One-click login</small>
+              </div>
               {rolePresets.map((preset) => (
                 <button className="role-card" key={preset.role} type="button" onClick={() => applyPreset(preset)}>
                   <span className="role-icon"><preset.Icon size={16} /></span>
                   <span>
                     <strong>{preset.role}</strong>
-                    <small>{preset.summary}</small>
                     <code>{preset.email}</code>
                   </span>
                 </button>
