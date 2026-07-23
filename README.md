@@ -6,6 +6,8 @@
 
 A full-stack operations command center for incident triage, SLA tracking, execution workflows, analytics, and audit visibility.
 
+CI/CD status is validated on every push to `main`.
+
 ![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot-6DB33F?logo=springboot&logoColor=white)
 ![MySQL](https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white)
