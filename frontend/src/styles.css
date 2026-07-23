@@ -374,17 +374,26 @@ html[data-theme="light"] .logo-cell {
   border: 1px solid var(--border);
   display: inline-grid;
   place-items: center;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(140deg, color-mix(in oklab, var(--accent) 16%, transparent), transparent);
+  grid-template-rows: 1fr 1fr;
+  background:
+    linear-gradient(140deg, color-mix(in oklab, var(--accent) 14%, transparent), transparent),
+    var(--panel-strong);
   overflow: hidden;
+  color: var(--text);
+  font-family: "Sora", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
-.brand-mark img {
-  width: 23px;
-  height: 23px;
-  object-fit: contain;
-  filter: saturate(1.05);
+.brand-mark-line {
+  display: block;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.brand-mark-accent {
+  color: var(--accent);
 }
 
 .sidebar-badge {

@@ -21,15 +21,22 @@ CI/CD status is validated on every push to `main`.
 
 ## Table of Contents
 - [What It Does](#what-it-does)
+- [Live Deployment](#live-deployment)
 - [Demo](#demo)
 - [Core Features](#core-features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
+- [Database Schema](#database-schema)
 - [Quick Start (One Command)](#quick-start-one-command)
 - [Local Dev Setup](#local-dev-setup)
 - [Seeded Accounts](#seeded-accounts)
 - [Environment Variables](#environment-variables)
 - [API Overview](#api-overview)
+- [Postman Collection](#postman-collection)
+- [Load Testing](#load-testing)
+- [Design Decisions](#design-decisions)
+- [Known Limitations](#known-limitations)
+- [Future Improvements](#future-improvements)
 - [Deployment](#deployment)
 - [System Flow](#system-flow)
 - [Troubleshooting](#troubleshooting)
@@ -40,11 +47,21 @@ CI/CD status is validated on every push to `main`.
 
 ## What It Does
 **OpsPilot AI** helps teams run incident operations end-to-end:
-- Intake and prioritize incidents using a local scoring model
+- Intake and prioritize incidents using severity, SLA, and priority scoring rules
 - Track status with SLA countdowns and urgency signals
 - Generate AI incident briefs and action plans
 - Auto-create remediation tasks from incidents
 - Monitor activity and analytics with role-based access
+
+---
+
+## Live Deployment
+
+- Live application: https://d231036zukeq44.cloudfront.net/app
+- API base: https://d231036zukeq44.cloudfront.net/app/api/
+- GitHub repository: https://github.com/shashank35i/OpsPilot-AI
+
+Use the demo accounts below to explore Reporter, Responder, and Admin workflows.
 
 ---
 
@@ -99,14 +116,51 @@ CI/CD status is validated on every push to `main`.
 ## Architecture
 
 ```text
-Browser (React/Vite UI)
+React + CloudFront
         |
         v
-Spring Boot API (JWT + sessions + Redis blacklist + Gemini + STOMP)
-        |                 \
-        v                  v
-   MySQL (source)      Redis (cache)
+Spring Boot on EC2
+        |
+        +--> MySQL / Amazon RDS
+        +--> Redis cache + JWT revocation blacklist
+        +--> WebSocket/STOMP alert delivery
+        +--> Gemini API for severity review and response assistance
 ```
+
+### Architecture Notes
+- MySQL is the source of truth for users, incidents, tasks, SLA policy, sessions, and activity.
+- Redis is used for cache-aside dashboard/analytics reads and immediate JWT revocation on logout.
+- WebSocket/STOMP alerts deliver SLA, assignment, and incident-update notifications in real time.
+- Scheduled jobs detect overdue, near-SLA, and stale unassigned incidents.
+- Gemini assists severity validation, summaries, and troubleshooting suggestions; human review remains the control point for mismatches.
+
+---
+
+## Database Schema
+
+Core tables:
+
+| Table | Purpose |
+|---|---|
+| `users` | Stores account profile, email, BCrypt password hash, and role (`Reporter`, `Responder`, `Admin`). |
+| `auth_sessions` | Tracks issued sessions and JWT IDs for hybrid JWT/session authentication. |
+| `blacklisted_tokens` | Stores revoked JWT IDs until expiry for immediate logout enforcement. |
+| `incidents` | Stores incident title, description, severity, status, owner, assignee, SLA timestamps, review state, and priority metadata. |
+| `tasks` | Stores remediation tasks linked to incidents with status, priority, assignee, and due time. |
+| `sla_policies` | Stores Admin-managed SLA thresholds by severity. |
+| `activities` | Stores audit/activity feed entries for incident, task, and system events. |
+
+Important indexes:
+
+| Index | Why it exists |
+|---|---|
+| `idx_users_email` | Fast unique login lookup. |
+| `idx_incidents_status_created` | Efficient status-filtered queue reads. |
+| `idx_incidents_sla_due` | Scheduled SLA breach scans. |
+| `idx_incidents_assignee_created` | Responder workload and assigned-queue reads. |
+| `idx_incidents_owner_created` | Reporter dashboard reads. |
+| `idx_incidents_review` | Manual severity review queue. |
+| `idx_tasks_status` | Task board filtering. |
 
 ---
 
@@ -158,9 +212,9 @@ npm run dev
 ## Seeded Accounts
 (when `SEED_ON_START=1`)
 
-- Admin: `admin@opspilot.ai` / `Admin@123`
-- Responder: `responder@opspilot.ai` / `Responder@123`
 - Reporter: `reporter@opspilot.ai` / `Reporter@123`
+- Responder: `responder@opspilot.ai` / `Responder@123`
+- Admin: `admin@opspilot.ai` / `Admin@123`
 
 ---
 
@@ -226,7 +280,7 @@ npm run dev
 ### Analytics / Metadata
 - `GET /api/analytics/summary`
 - `GET /api/analytics/cache-metrics`
-- `GET /api/models/priority`
+- `GET /api/models/priority` - priority scoring metadata
 - `GET /api/activities`
 - `GET /api/health`
 
@@ -239,14 +293,86 @@ npm run dev
 
 ---
 
-## Deployment
+## Postman Collection
 
-### Railway (recommended)
-1. Create `MySQL` service
-2. (Recommended) Create `Redis` service
-3. Deploy backend service from `/backend`
-4. Set the backend environment variables listed above.
-5. Deploy frontend service from `/frontend` (or Cloudflare Pages)
+A Postman collection should cover:
+
+- Auth: register, login, logout, current user
+- Dashboard: role-aware dashboard payload
+- Incidents: list, create, update status, claim, review severity, resolve, suggest tasks, generate summary
+- Tasks: list, create, update status/priority
+- Analytics: summary and cache metrics
+- Admin: SLA policy read/update
+
+Recommended collection variables:
+
+| Variable | Example |
+|---|---|
+| `base_url` | `https://d231036zukeq44.cloudfront.net/app/api` |
+| `token` | JWT returned by `POST /api/auth/login` |
+
+---
+
+## Load Testing
+
+Current measured performance work:
+
+- Redis cache-aside is used for repeated dashboard and analytics reads.
+- Cache metrics are exposed through `GET /api/analytics/cache-metrics`.
+- Indexed MySQL queries support dashboard, queue, SLA, and scheduled-monitoring paths.
+
+Recommended load-test scenarios:
+
+| Scenario | Endpoint / workflow |
+|---|---|
+| Login burst | `POST /api/auth/login` |
+| Dashboard repeated reads | `GET /api/dashboard` |
+| Incident queue reads | `GET /api/incidents` |
+| SLA scheduler impact | near-SLA and overdue incident scans |
+| Task generation | `POST /api/incidents/:id/auto-tasks` |
+
+Do not claim a specific throughput number unless it is produced from a repeatable run and committed with the test configuration.
+
+---
+
+## Design Decisions
+
+| Decision | Reason |
+|---|---|
+| Spring Boot backend | Clear service boundaries, strong security support, scheduled jobs, JPA, WebSocket/STOMP support. |
+| MySQL source of truth | Incident and workflow data is relational: users, assignments, SLA policy, tasks, and audit entries benefit from indexed joins/lookups. |
+| Redis cache-aside | Dashboard and analytics reads repeat often; Redis reduces repeated database reads without replacing MySQL as durable storage. |
+| Redis JWT revocation blacklist | Keeps JWT requests stateless while still allowing immediate logout/token invalidation. |
+| Role-aware shared pages | Avoids duplicate Reporter/Responder/Admin pages while preserving distinct permissions and views. |
+| Gemini as review support | AI supports severity validation, summaries, and troubleshooting, but manual review handles mismatches. |
+| Scheduled SLA monitoring | SLA and unassigned checks must run even when no user is actively viewing the dashboard. |
+| WebSocket/STOMP alerts | Responder/Admin queues benefit from real-time operational updates. |
+
+---
+
+## Known Limitations
+
+- Public registration is intentionally limited to Reporter accounts.
+- Responder/Admin accounts are seeded or managed administratively.
+- The app currently uses shared role-aware pages instead of separate route trees per role.
+- Postman and load-test artifacts should be kept in the repo when final benchmark runs are produced.
+- API documentation is currently README-based; Swagger/OpenAPI can be added later if required.
+- Local backend tests require Maven on PATH because no Maven wrapper is committed.
+
+---
+
+## Future Improvements
+
+- Add a committed Postman collection under `docs/`.
+- Add repeatable k6/JMeter load-test scripts and publish measured results.
+- Add Swagger/OpenAPI generation for the Spring Boot API.
+- Add a dedicated incident detail route if deeper timeline/comment workflows are expanded.
+- Add Admin-managed user creation for Responder/Admin accounts.
+- Add saved notification preferences backed by the API.
+
+---
+
+## Deployment
 
 ### AWS
 - Backend: Dockerized Spring Boot service on EC2
@@ -254,6 +380,7 @@ npm run dev
 - Frontend assets: S3
 - CDN: CloudFront
 - Cache / token blacklist: Redis-compatible cache endpoint
+- CI/CD: GitHub Actions
 
 ---
 
