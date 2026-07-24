@@ -8,7 +8,7 @@ A full-stack incident-management system with role-based workflows, AI-assisted t
 
 [![OpsPilot CI](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/ci.yml)
 [![Deploy OpsPilot to AWS](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/deploy-aws.yml/badge.svg?branch=main)](https://github.com/shashank35i/OpsPilot-AI/actions/workflows/deploy-aws.yml)
-[![Live Application](https://img.shields.io/badge/Live-Application-2ea44f)](https://d231036zukeq44.cloudfront.net/app)
+[![Live Application](https://img.shields.io/badge/Live-Application-2ea44f)](https://d231036zukeq44.cloudfront.net/)
 [![API Health](https://img.shields.io/badge/API-Health-2563eb)](https://d231036zukeq44.cloudfront.net/api/health)
 
 ![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
@@ -20,7 +20,7 @@ A full-stack incident-management system with role-based workflows, AI-assisted t
 ![AWS](https://img.shields.io/badge/AWS-EC2_·_RDS_·_S3_·_CloudFront-FF9900?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-### [Open Live Application](https://d231036zukeq44.cloudfront.net/app) · [View GitHub Actions](https://github.com/shashank35i/OpsPilot-AI/actions) · [Import Postman Collection](docs/postman/OpsPilot.postman_collection.json)
+### [Open Live Application](https://d231036zukeq44.cloudfront.net/) · [View GitHub Actions](https://github.com/shashank35i/OpsPilot-AI/actions) · [Import Postman Collection](docs/postman/OpsPilot.postman_collection.json)
 
 </div>
 
@@ -70,7 +70,7 @@ After a successful CI run on `main`, GitHub Actions authenticates to AWS through
 
 | Resource | URL |
 |---|---|
-| Application | [https://d231036zukeq44.cloudfront.net/app](https://d231036zukeq44.cloudfront.net/app) |
+| Application | [https://d231036zukeq44.cloudfront.net/](https://d231036zukeq44.cloudfront.net/) |
 | API base | [https://d231036zukeq44.cloudfront.net/api/](https://d231036zukeq44.cloudfront.net/api/) |
 | API health | [https://d231036zukeq44.cloudfront.net/api/health](https://d231036zukeq44.cloudfront.net/api/health) |
 | Repository | [OpsPilot-AI](https://github.com/shashank35i/OpsPilot-AI) |
